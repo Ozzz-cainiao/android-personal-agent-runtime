@@ -11,8 +11,8 @@ android {
         applicationId = "io.github.ozzz.personalagent"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.0.1"
+        versionCode = 2
+        versionName = "0.0.2"
     }
     buildFeatures {
         aidl = true
@@ -30,4 +30,5 @@ android {
 dependencies {
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
+    testImplementation("junit:junit:4.13.2")
 }

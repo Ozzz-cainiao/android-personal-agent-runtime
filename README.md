@@ -8,15 +8,17 @@
 - 已验证 Mac 可通过 USB adb 连接测试手机（Android 16 / API 36）。
 - 已确认手机安装淘宝且 Shizuku 服务正在运行。
 - 已实现第一步连接测试：授权、绑定 UserService、读取远端 UID/PID、断开连接。
-- 真机验证结果见下方记录；尚未实现启动淘宝和输入注入。
+- 已实现并真机验证第二步：通过 UserService 启动淘宝；尚未实现输入注入。
 
 ## 第一版代码入口
 
 | 文件 | 职责 |
 | --- | --- |
-| `app/src/main/java/io/github/ozzz/personalagent/MainActivity.kt` | 两个按钮、状态日志；页面销毁时释放连接 |
+| `app/src/main/java/io/github/ozzz/personalagent/MainActivity.kt` | 连接、启动、断开按钮与状态日志；页面销毁时释放连接 |
 | `app/src/main/java/io/github/ozzz/personalagent/ShizukuRuntimeClient.kt` | Shizuku 授权、绑定、超时、断连与身份验证 |
-| `app/src/main/java/io/github/ozzz/personalagent/AutomationUserService.kt` | 由 Shizuku 启动的特权对象，只返回自己的 UID/PID |
+| `app/src/main/java/io/github/ozzz/personalagent/AutomationUserService.kt` | 特权对象：读取 UID/PID、解析 Launcher Activity 并执行通用应用启动 |
+| `app/src/main/java/io/github/ozzz/personalagent/CommandRunner.kt` | 参数数组执行、超时、并发读取有限长度输出、启动结果判定 |
+| `app/src/main/java/io/github/ozzz/personalagent/TaobaoSmokeTask.kt` | 淘宝测试任务，保存业务目标包名 |
 | `app/src/main/aidl/io/github/ozzz/personalagent/IAutomationService.aidl` | 跨进程接口契约 |
 
 UI 和 UserService 运行在不同进程。普通 App 的 UID 不会因授权而改变；通过按钮确认远端 UID 为 `2000`（shell）或 `0`（root），且 PID 与 App 不同，才算特权连接通过。本阶段 Activity 销毁会断开服务，尚未实现后台任务生命周期。
@@ -32,7 +34,7 @@ Gradle 8.11.1 下载包已对照官方 SHA-256 校验：`f397b287023acdba1e9f6fc
 配置 `JAVA_HOME` 指向 JDK，`ANDROID_HOME` 指向 Android SDK 后：
 
 ```sh
-./gradlew assembleDebug lintDebug
+./gradlew assembleDebug lintDebug testDebugUnitTest
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n io.github.ozzz.personalagent/.MainActivity
 adb logcat -v time 'PersonalAgent:I' 'AndroidRuntime:E' '*:S'
@@ -41,6 +43,10 @@ adb logcat -v time 'PersonalAgent:I' 'AndroidRuntime:E' '*:S'
 也可以使用 Android Studio 打开项目根目录。使用 Shizuku UserService 时应通过完整 APK 安装更新代码，不依赖 Apply Changes 更新远端进程。
 
 首次测试：打开 **Personal Agent** → 点击 **测试 Shizuku 连接** → 在 Shizuku 弹窗允许 → 等待页面出现 `[通过] UserService uid=2000 pid=...`。
+
+启动测试：点击 **启动淘宝（不点击）**，自动完成连接与授权检查后启动淘宝；返回 Personal Agent 查看退出码、输出、耗时。淘宝入口通过 `cmd package resolve-activity` 动态解析，随后在 UserService 内运行 `am start -W`，不 force-stop 淘宝。App 不在 `onStop` 取消本次操作，因此淘宝进入前台后日志仍能返回。
+
+解析命令限时 5 秒，启动命令限时 8 秒；stdout/stderr 分别最多保留 8 KiB，同时持续排空管道。客户端另外设置连接与操作超时。退出码 0 还需配合 `Status: ok` 且无已知失败输出才判为命令完成，页面效果仍需另行验证。
 
 点击 **断开连接** 后应能再次测试。拒绝授权应显示明确提示；不要为了测试本 App 而停止其他 App 正在使用的 Shizuku 服务。若要验证 Shizuku 停止场景，应先确认其他任务可以中断。
 
@@ -52,7 +58,9 @@ adb logcat -v time 'PersonalAgent:I' 'AndroidRuntime:E' '*:S'
 - APK 安装与启动：通过。首次安装曾被小米的 USB 安装限制拒绝；用户开启 USB 安装后重试成功。
 - 2026-09-26 真机首次授权与 UserService 绑定：通过。App `uid=10417 pid=24276`；远端 `uid=2000 pid=32256`，确认为独立 shell 进程。
 - 断开后重连：通过。日志确认旧服务执行 `SERVICE_DESTROY`，重连创建新进程 `uid=2000 pid=315`；`ps` 确认进程名为 `io.github.ozzz.personalagent:runtime`。PID 仅是本次运行证据，不应写入程序。
-- 未测试：拒绝授权、服务超时、Shizuku 停止、屏幕旋转；尚未实现淘宝启动、点击和脱离电脑的完整流程。
+- 0.0.2：`assembleDebug lintDebug testDebugUnitTest` 通过；5 个单元测试覆盖大输出、超时、非零退出、错误入口解析、启动成功/失败判定，0 failures、0 errors。Lint 仍为 0 errors、8 warnings。
+- 2026-09-26 17:21 真机淘宝启动：通过。由测试 App 按钮触发，UserService `uid=2000` 解析 `com.taobao.taobao/com.taobao.tao.welcome.Welcome` 并启动，`Status: ok`、`LaunchState: COLD`，解析及启动总耗时 914ms。随后 `dumpsys activity activities` 确认 `topResumedActivity` 为淘宝 `com.taobao.tao.TBMainActivity`，本轮未点击淘宝内容。
+- 未真机测试：拒绝授权、服务超时、Shizuku 停止、屏幕旋转、目标未安装；尚未实现点击和脱离电脑的完整流程。
 
 ## MVP 0
 

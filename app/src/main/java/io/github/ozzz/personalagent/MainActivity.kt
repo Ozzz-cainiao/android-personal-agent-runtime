@@ -36,17 +36,19 @@ class MainActivity : Activity() {
             insets
         }
         root.addView(TextView(this).apply {
-            text = "Personal Agent · 连接验证"
+            text = "Personal Agent · 启动验证"
             textSize = 24f
         })
         root.addView(TextView(this).apply {
-            text = "第一步：验证 Shizuku 特权进程。\n本版本只读取 UID/PID，不启动淘宝、不执行点击。"
+            text = "第二步：通过 Shizuku 启动淘宝。\n本版本只验证启动，不执行点击。返回本 App 可查看日志。"
             textSize = 16f
             setPadding(0, spacing, 0, spacing)
         })
         val test = Button(this).apply { text = "测试 Shizuku 连接" }
+        val launch = Button(this).apply { text = "启动淘宝（不点击）" }
         val disconnect = Button(this).apply { text = "断开连接" }
         root.addView(test)
+        root.addView(launch)
         root.addView(disconnect)
         logView = TextView(this).apply {
             textSize = 14f
@@ -62,8 +64,10 @@ class MainActivity : Activity() {
         appendLog("[就绪] 点击按钮开始验证。")
         client = ShizukuRuntimeClient(this, ::appendLog) { busy ->
             test.isEnabled = !busy
+            launch.isEnabled = !busy
         }
         test.setOnClickListener { client.testConnection() }
+        launch.setOnClickListener { TaobaoSmokeTask.launch(client) }
         disconnect.setOnClickListener { client.disconnect() }
     }
 

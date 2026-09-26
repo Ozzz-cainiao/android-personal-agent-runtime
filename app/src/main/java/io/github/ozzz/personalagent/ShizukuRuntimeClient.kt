@@ -29,11 +29,12 @@ class ShizukuRuntimeClient(
     private var activeConnection: ServiceConnection? = null
     private var generation = 0
     private var remote: IAutomationService? = null
+    private var requestedPackage: String? = null
 
     private val timeout = Runnable {
         if (!closed && busy) {
             disconnect()
-            report("[失败] 连接或身份读取超过 15 秒，请查看 Logcat 后重试。")
+            report("[失败] 操作超时，已断开连接，请查看 Logcat 后重试。")
         }
     }
 
@@ -83,8 +84,13 @@ class ShizukuRuntimeClient(
         Shizuku.addRequestPermissionResultListener(permissionResult, main)
     }
 
-    fun testConnection() {
+    fun testConnection() = start(null)
+
+    fun launchApp(packageName: String) = start(packageName)
+
+    private fun start(packageName: String?) {
         if (closed || busy) return
+        requestedPackage = packageName
         busy = true
         busyChanged(true)
         report("[本机] App uid=${Process.myUid()} pid=${Process.myPid()}")
@@ -139,8 +145,38 @@ class ShizukuRuntimeClient(
             }
             main.post {
                 if (!closed && generation == attempt) {
-                    result.onSuccess { finish(); report(it) }
+                    result.onSuccess {
+                        report(it)
+                        val packageName = requestedPackage
+                        if (packageName == null) finish() else launchRemote(service, packageName)
+                    }
                         .onFailure { fail("读取身份", it) }
+                }
+            }
+        }
+    }
+
+    private fun launchRemote(service: IAutomationService, packageName: String) {
+        main.removeCallbacks(timeout)
+        main.postDelayed(timeout, 20_000)
+        val attempt = ++generation
+        report("[启动] package=$packageName，正在通过 UserService 启动…")
+        worker.execute {
+            val result = runCatching { service.launchApp(packageName) }
+            main.post {
+                if (!closed && generation == attempt) {
+                    result.onSuccess { value ->
+                        finish()
+                        report("[启动] stage=${value.getString("stage")} exit=${value.getInt("exitCode")} timeout=${value.getBoolean("timedOut")} 耗时=${value.getLong("elapsedMs")}ms")
+                        for (key in listOf("stdout", "stderr")) {
+                            value.getString(key)?.takeIf { it.isNotBlank() }?.let { report("[$key] $it") }
+                        }
+                        if (value.getBoolean("success")) {
+                            report("[启动完成] ${value.getString("component")}；请在手机确认页面。")
+                        } else {
+                            report("[启动失败] ${value.getString("error")}")
+                        }
+                    }.onFailure { fail("启动应用", it) }
                 }
             }
         }
@@ -174,6 +210,7 @@ class ShizukuRuntimeClient(
     private fun finish() {
         main.removeCallbacks(timeout)
         busy = false
+        requestedPackage = null
         if (!closed) busyChanged(false)
     }
 

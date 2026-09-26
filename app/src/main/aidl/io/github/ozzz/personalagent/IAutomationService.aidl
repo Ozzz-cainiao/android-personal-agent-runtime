@@ -6,4 +6,5 @@ interface IAutomationService {
     // Reserved UserService lifecycle transaction; AIDL adds 1 to this ID.
     oneway void destroy() = 16777114;
     Bundle getIdentity() = 1;
+    Bundle launchApp(String packageName) = 2;
 }
