@@ -9,14 +9,14 @@ import java.util.concurrent.TimeUnit
 internal object CommandRunner {
     data class Result(val exitCode: Int, val stdout: String, val stderr: String, val timedOut: Boolean)
 
-    fun run(args: List<String>, timeoutMs: Long): Result {
-        require(args.isNotEmpty() && timeoutMs > 0)
+    fun run(args: List<String>, timeoutMs: Long, outputLimit: Int = 8192): Result {
+        require(args.isNotEmpty() && timeoutMs > 0 && outputLimit in 1..256_000)
         val process = ProcessBuilder(args).start()
         val readers = Executors.newFixedThreadPool(2)
         try {
             process.outputStream.close()
-            val stdout = readers.submit<String> { capture(process.inputStream) }
-            val stderr = readers.submit<String> { capture(process.errorStream) }
+            val stdout = readers.submit<String> { capture(process.inputStream, outputLimit) }
+            val stderr = readers.submit<String> { capture(process.errorStream, outputLimit) }
             val finished = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS)
             if (!finished) {
                 process.destroyForcibly()
@@ -34,14 +34,14 @@ internal object CommandRunner {
         }
     }
 
-    private fun capture(stream: InputStream): String = stream.use {
+    private fun capture(stream: InputStream, limit: Int): String = stream.use {
         val output = ByteArrayOutputStream()
         val buffer = ByteArray(4096)
         var truncated = false
         while (true) {
             val size = it.read(buffer)
             if (size == -1) break
-            val retained = minOf(size, 8192 - output.size())
+            val retained = minOf(size, limit - output.size())
             output.write(buffer, 0, retained)
             if (retained < size) truncated = true
         }
@@ -67,4 +67,17 @@ internal object LaunchProtocol {
                 it.trim().startsWith("Error:") || it.contains("current activity is being kept") ||
                     it.contains("should be handled by the caller")
             }
+}
+
+internal object TapProtocol {
+    fun isForeground(packageName: String, result: CommandRunner.Result): Boolean {
+        if (result.timedOut || result.exitCode != 0) return false
+        var primary = false
+        val tops = result.stdout.lineSequence().filter { line ->
+            if (line.startsWith("Display #")) primary = line.startsWith("Display #0 ")
+            primary && line.trim().startsWith("topResumedActivity=")
+        }.toList()
+        // Only display 0: another app may be running on a virtual display.
+        return tops.size == 1 && Regex("\\s" + Regex.escape(packageName) + "/").containsMatchIn(tops.single())
+    }
 }

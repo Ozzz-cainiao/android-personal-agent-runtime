@@ -1,6 +1,7 @@
 package io.github.ozzz.personalagent
 
 import android.os.Bundle
+import android.os.Binder
 import android.os.Process
 import android.os.SystemClock
 import android.util.Log
@@ -8,6 +9,44 @@ import kotlin.system.exitProcess
 
 /** Instantiated by Shizuku in a separate shell/root process, not an Android Service. */
 class AutomationUserService : IAutomationService.Stub() {
+    @Synchronized
+    override fun dumpUi(expectedPackage: String): String {
+        require(LaunchProtocol.validPackage(expectedPackage))
+        val identity = Binder.clearCallingIdentity()
+        return try { UiHierarchyReader.read(expectedPackage) } finally { Binder.restoreCallingIdentity(identity) }
+    }
+    @Synchronized
+    override fun tap(expectedPackage: String, x: Int, y: Int): Bundle {
+        val started = SystemClock.elapsedRealtime()
+        var command: CommandRunner.Result? = null
+        return try {
+            require(LaunchProtocol.validPackage(expectedPackage) && x >= 0 && y >= 0)
+            val foreground = CommandRunner.run(listOf("/system/bin/dumpsys", "activity", "activities"), 3_000, 256_000)
+            check(TapProtocol.isForeground(expectedPackage, foreground)) { "目标 App 未处于前台，取消点击" }
+            Log.i("PersonalAgent", "TAP_BEGIN package=$expectedPackage display=0 x=$x y=$y uid=${Process.myUid()} pid=${Process.myPid()}")
+            command = CommandRunner.run(listOf("/system/bin/input", "-d", "0", "tap", x.toString(), y.toString()), 3_000)
+            val success = !command.timedOut && command.exitCode == 0 && command.stderr.isBlank() &&
+                !command.stdout.contains("Error", ignoreCase = true)
+            Bundle().apply {
+                putBoolean("success", success)
+                if (!success) putString("error", "点击命令未确认成功")
+            }
+        } catch (e: Exception) {
+            Log.e("PersonalAgent", "TAP_FAILED", e)
+            Bundle().apply {
+                putBoolean("success", false)
+                putString("error", "${e.javaClass.simpleName}: ${e.message}")
+            }
+        }.apply {
+            putInt("exitCode", command?.exitCode ?: -1)
+            putBoolean("timedOut", command?.timedOut ?: false)
+            putString("stdout", command?.stdout.orEmpty())
+            putString("stderr", command?.stderr.orEmpty())
+            putLong("elapsedMs", SystemClock.elapsedRealtime() - started)
+            Log.i("PersonalAgent", "TAP_RESULT success=${getBoolean("success")} exit=${getInt("exitCode")} elapsedMs=${getLong("elapsedMs")}")
+        }
+    }
+
     @Synchronized
     override fun launchApp(packageName: String): Bundle {
         val started = SystemClock.elapsedRealtime()

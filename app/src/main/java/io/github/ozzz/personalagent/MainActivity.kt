@@ -36,19 +36,21 @@ class MainActivity : Activity() {
             insets
         }
         root.addView(TextView(this).apply {
-            text = "Personal Agent · 启动验证"
+            text = "Personal Agent · 淘金币验证"
             textSize = 24f
         })
         root.addView(TextView(this).apply {
-            text = "第二步：通过 Shizuku 启动淘宝。\n本版本只验证启动，不执行点击。返回本 App 可查看日志。"
+            text = "通过 Shizuku 进入淘金币并领取每日签到奖励。\n返回本 App 查看结果；遇到无法识别的页面停止。"
             textSize = 16f
             setPadding(0, spacing, 0, spacing)
         })
         val test = Button(this).apply { text = "测试 Shizuku 连接" }
         val launch = Button(this).apply { text = "启动淘宝（不点击）" }
-        val disconnect = Button(this).apply { text = "断开连接" }
+        val inspect = Button(this).apply { text = "领取今日淘金币" }
+        val disconnect = Button(this).apply { text = "取消任务 / 断开连接" }
         root.addView(test)
         root.addView(launch)
+        root.addView(inspect)
         root.addView(disconnect)
         logView = TextView(this).apply {
             textSize = 14f
@@ -63,11 +65,21 @@ class MainActivity : Activity() {
         savedInstanceState?.getStringArrayList("logs")?.let { entries.addAll(it) }
         appendLog("[就绪] 点击按钮开始验证。")
         client = ShizukuRuntimeClient(this, ::appendLog) { busy ->
+            val serviceIntent = android.content.Intent(this, TaskService::class.java)
+            if (busy) startForegroundService(serviceIntent) else stopService(serviceIntent)
             test.isEnabled = !busy
             launch.isEnabled = !busy
+            inspect.isEnabled = !busy
         }
         test.setOnClickListener { client.testConnection() }
         launch.setOnClickListener { TaobaoSmokeTask.launch(client) }
+        inspect.setOnClickListener {
+            client.runTask { runtime ->
+                TaobaoCoinTask.run(runtime) { xml ->
+                    java.io.File(filesDir, "last-ui.xml").writeText(xml)
+                }
+            }
+        }
         disconnect.setOnClickListener { client.disconnect() }
     }
 

@@ -4,6 +4,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CommandRunnerTest {
+    @Test fun tapRequiresUnambiguousTargetInForeground() {
+        fun output(text: String) = CommandRunner.Result(0, "Display #0 (activities from top to bottom):\n" + text, "", false)
+        assertTrue(TapProtocol.isForeground("com.example.app", output("  topResumedActivity=ActivityRecord{123 u0 com.example.app/.Main t1}")))
+        assertFalse(TapProtocol.isForeground("com.example.app", output("topResumedActivity=ActivityRecord{123 u0 com.example.app.other/.Main t1}")))
+        assertFalse(TapProtocol.isForeground("com.example.app", output("mResumedActivity=null")))
+        assertFalse(TapProtocol.isForeground("com.example.app", CommandRunner.Result(1, "topResumedActivity=ActivityRecord{123 u0 com.example.app/.Main t1}", "", false)))
+    }
+
     @Test fun drainsLargeOutputWithoutDeadlock() {
         val result = CommandRunner.run(listOf("/bin/sh", "-c",
             "i=0; while [ \"\$i\" -lt 4000 ]; do echo abcdefghijklmnopqrstuvwxyz; echo error-output >&2; i=\$((i+1)); done"), 5_000)

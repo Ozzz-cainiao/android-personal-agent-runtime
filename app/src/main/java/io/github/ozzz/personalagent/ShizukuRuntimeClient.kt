@@ -11,6 +11,7 @@ import android.os.Process
 import android.util.Log
 import rikka.shizuku.Shizuku
 import java.util.concurrent.Executors
+import java.util.concurrent.Future
 
 /** All mutable connection state and UI callbacks live on the main thread. */
 class ShizukuRuntimeClient(
@@ -24,12 +25,17 @@ class ShizukuRuntimeClient(
         ComponentName(context.applicationContext, AutomationUserService::class.java)
     ).daemon(false).tag("automation-runtime").processNameSuffix("runtime")
         .debuggable(BuildConfig.DEBUG).version(BuildConfig.VERSION_CODE)
-    private var closed = false
+    @Volatile private var closed = false
     private var busy = false
     private var activeConnection: ServiceConnection? = null
-    private var generation = 0
+    @Volatile private var generation = 0
     private var remote: IAutomationService? = null
     private var requestedPackage: String? = null
+    data class TapRequest(val x: Int, val y: Int, val waitMs: Long)
+    private var requestedTap: TapRequest? = null
+    private var pendingTap: Runnable? = null
+    private var requestedTask: ((AutomationRuntime) -> String)? = null
+    private var taskFuture: Future<*>? = null
 
     private val timeout = Runnable {
         if (!closed && busy) {
@@ -86,11 +92,20 @@ class ShizukuRuntimeClient(
 
     fun testConnection() = start(null)
 
+    fun runTask(task: (AutomationRuntime) -> String) = start(null, task = task)
+
     fun launchApp(packageName: String) = start(packageName)
 
-    private fun start(packageName: String?) {
+    fun launchAndTap(packageName: String, tap: TapRequest) {
+        require(tap.x >= 0 && tap.y >= 0 && tap.waitMs in 0..10_000)
+        start(packageName, tap)
+    }
+
+    private fun start(packageName: String?, tap: TapRequest? = null, task: ((AutomationRuntime) -> String)? = null) {
         if (closed || busy) return
         requestedPackage = packageName
+        requestedTap = tap
+        requestedTask = task
         busy = true
         busyChanged(true)
         report("[本机] App uid=${Process.myUid()} pid=${Process.myPid()}")
@@ -148,9 +163,45 @@ class ShizukuRuntimeClient(
                     result.onSuccess {
                         report(it)
                         val packageName = requestedPackage
-                        if (packageName == null) finish() else launchRemote(service, packageName)
+                        val task = requestedTask
+                        if (task != null) executeTask(service, task)
+                        else if (packageName == null) finish() else launchRemote(service, packageName)
                     }
                         .onFailure { fail("读取身份", it) }
+                }
+            }
+        }
+    }
+
+    private fun executeTask(service: IAutomationService, task: (AutomationRuntime) -> String) {
+        main.removeCallbacks(timeout)
+        main.postDelayed(timeout, 120_000)
+        val attempt = ++generation
+        taskFuture = worker.submit {
+            fun checkActive() { check(!closed && generation == attempt && !Thread.currentThread().isInterrupted) { "任务已取消" } }
+            val runtime = object : AutomationRuntime {
+                override fun log(message: String) {
+                    checkActive()
+                    main.post { if (!closed && generation == attempt) report(message) }
+                }
+                private fun command(name: String, call: () -> android.os.Bundle) {
+                    checkActive()
+                    val value = call()
+                    log("[$name] exit=${value.getInt("exitCode")} 耗时=${value.getLong("elapsedMs")}ms")
+                    check(value.getBoolean("success")) { "$name 失败：${value.getString("error")}; ${value.getString("stderr")}" }
+                }
+                override fun launch(packageName: String) = command("启动") { service.launchApp(packageName) }
+                override fun tap(packageName: String, x: Int, y: Int) = command("点击 $x,$y") { service.tap(packageName, x, y) }
+                override fun readUi(packageName: String): String { checkActive(); return service.dumpUi(packageName) }
+                override fun pause(milliseconds: Long) { checkActive(); Thread.sleep(milliseconds); checkActive() }
+            }
+            val result = runCatching { task(runtime) }
+            main.post {
+                if (!closed && generation == attempt) {
+                    taskFuture = null
+                    finish()
+                    result.onSuccess { report("[任务结果] $it") }
+                        .onFailure { Log.e("PersonalAgent", "TASK_FAILED", it); report("[任务失败] ${it.message}") }
                 }
             }
         }
@@ -166,14 +217,16 @@ class ShizukuRuntimeClient(
             main.post {
                 if (!closed && generation == attempt) {
                     result.onSuccess { value ->
-                        finish()
                         report("[启动] stage=${value.getString("stage")} exit=${value.getInt("exitCode")} timeout=${value.getBoolean("timedOut")} 耗时=${value.getLong("elapsedMs")}ms")
                         for (key in listOf("stdout", "stderr")) {
                             value.getString(key)?.takeIf { it.isNotBlank() }?.let { report("[$key] $it") }
                         }
                         if (value.getBoolean("success")) {
                             report("[启动完成] ${value.getString("component")}；请在手机确认页面。")
+                            val tap = requestedTap
+                            if (tap == null) finish() else scheduleTap(service, packageName, tap)
                         } else {
+                            finish()
                             report("[启动失败] ${value.getString("error")}")
                         }
                     }.onFailure { fail("启动应用", it) }
@@ -182,8 +235,38 @@ class ShizukuRuntimeClient(
         }
     }
 
+    private fun scheduleTap(service: IAutomationService, packageName: String, tap: TapRequest) {
+        val attempt = ++generation
+        main.removeCallbacks(timeout)
+        main.postDelayed(timeout, tap.waitMs + 12_000)
+        report("[等待] ${tap.waitMs}ms，然后点击 (${tap.x}, ${tap.y}) 一次。")
+        pendingTap = Runnable {
+            pendingTap = null
+            if (closed || generation != attempt) return@Runnable
+            report("[点击] 检查目标 App 前台状态，准备注入。")
+            worker.execute {
+                val result = runCatching { service.tap(packageName, tap.x, tap.y) }
+                main.post {
+                    if (!closed && generation == attempt) {
+                        result.onSuccess { value ->
+                            finish()
+                            report("[点击] exit=${value.getInt("exitCode")} timeout=${value.getBoolean("timedOut")} 耗时=${value.getLong("elapsedMs")}ms")
+                            for (key in listOf("stdout", "stderr")) {
+                                value.getString(key)?.takeIf { it.isNotBlank() }?.let { report("[$key] $it") }
+                            }
+                            if (value.getBoolean("success")) report("[流程完成] 已执行一次点击命令，请确认页面效果。")
+                            else report("[点击失败] ${value.getString("error")}")
+                        }.onFailure { fail("点击", it) }
+                    }
+                }
+            }
+        }.also { main.postDelayed(it, tap.waitMs) }
+    }
+
     fun disconnect() {
         generation++
+        taskFuture?.cancel(true)
+        taskFuture = null
         remote = null
         releaseService()
         finish()
@@ -209,8 +292,12 @@ class ShizukuRuntimeClient(
 
     private fun finish() {
         main.removeCallbacks(timeout)
+        pendingTap?.let(main::removeCallbacks)
+        pendingTap = null
         busy = false
         requestedPackage = null
+        requestedTap = null
+        requestedTask = null
         if (!closed) busyChanged(false)
     }
 
