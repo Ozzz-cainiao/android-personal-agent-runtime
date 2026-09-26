@@ -49,8 +49,10 @@ adb logcat -v time 'PersonalAgent:I' 'AndroidRuntime:E' '*:S'
 - USB adb、Android 16 / API 36、淘宝安装状态、Shizuku 服务进程：已确认。
 - `assembleDebug lintDebug`：通过。Lint 为 0 errors、8 warnings（版本更新提示、备份配置、占位图标和测试页面国际化提示）。
 - 持久工具目录与依赖缓存：已通过 `./scripts/build-local.sh --offline --console=plain assembleDebug lintDebug` 离线复验。
-- 首次 APK 安装：被设备拒绝，错误 `INSTALL_FAILED_USER_RESTRICTED`；需在手机确认 USB 安装设置后重试。
-- UserService 绑定：尚未真机验证。
+- APK 安装与启动：通过。首次安装曾被小米的 USB 安装限制拒绝；用户开启 USB 安装后重试成功。
+- 2026-09-26 真机首次授权与 UserService 绑定：通过。App `uid=10417 pid=24276`；远端 `uid=2000 pid=32256`，确认为独立 shell 进程。
+- 断开后重连：通过。日志确认旧服务执行 `SERVICE_DESTROY`，重连创建新进程 `uid=2000 pid=315`；`ps` 确认进程名为 `io.github.ozzz.personalagent:runtime`。PID 仅是本次运行证据，不应写入程序。
+- 未测试：拒绝授权、服务超时、Shizuku 停止、屏幕旋转；尚未实现淘宝启动、点击和脱离电脑的完整流程。
 
 ## MVP 0
 
