@@ -1,0 +1,20 @@
+# Android / Gradle generated files
+.gradle/
+.kotlin/
+**/build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+
+# Signing material and local secrets
+*.jks
+*.keystore
+keystore.properties
+.env
+.env.*
+!.env.example
+
+# Device logs and captures
+*.log
+captures/
