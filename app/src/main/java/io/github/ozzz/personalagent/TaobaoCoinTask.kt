@@ -8,7 +8,7 @@ object TaobaoCoinTask {
         page.findExact("淘金币标题") != null &&
         page.findExact("签到领金币") == null &&
         page.findExact("赚更多金币") != null &&
-        page.findExact("已领取") != null
+        page.findExact("今天") != null
 
     fun run(runtime: AutomationRuntime, record: (String) -> Unit = {}): String {
         fun read(): UiSnapshot {

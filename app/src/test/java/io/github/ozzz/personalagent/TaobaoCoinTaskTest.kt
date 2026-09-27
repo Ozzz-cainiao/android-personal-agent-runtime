@@ -20,13 +20,13 @@ class TaobaoCoinTaskTest {
 
     @Test fun hiddenClaimedTextDoesNotSkipClaim() {
         val runtime = Runtime(listOf(page("淘金币标题", "签到领金币", "已领取"),
-            page("淘金币标题", "赚更多金币", "已领取")))
+            page("淘金币标题", "赚更多金币", "今天")))
         assertTrue(TaobaoCoinTask.run(runtime).contains("签到按钮已消失"))
         assertEquals(1, runtime.taps)
     }
 
     @Test fun alreadyClaimedDoesNotTap() {
-        val runtime = Runtime(listOf(page("淘金币标题", "赚更多金币", "已领取")))
+        val runtime = Runtime(listOf(page("淘金币标题", "赚更多金币", "今天")))
         assertTrue(TaobaoCoinTask.run(runtime).contains("无需重复"))
         assertEquals(0, runtime.taps)
     }
