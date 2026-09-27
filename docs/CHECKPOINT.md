@@ -32,3 +32,12 @@
 ## 这一轮发布范围
 
 公开仓库、重写新手指南、发布标为 prerelease 的 Debug APK和校验值。正式生产签名、项目许可证、跨机适配及完整240金币自动化不在本次完成声明内。查看 GitHub Release 与提交记录确认最终发布状态。
+
+## 发布完成记录
+
+- 仓库已确认为 PUBLIC。
+- 代码存档：`6efcc73eb9d4a1105c9d2e8ebbe36ba5cd08daf0`；发布标签 `v0.0.4-preview` 固定此提交。
+- [预览 Release](https://github.com/Ozzz-cainiao/android-personal-agent-runtime/releases/tag/v0.0.4-preview) 已发布，含APK与SHA256SUMS；确认为prerelease。
+- APK约2.56MB；SHA-256：`2ce414ed5d53e75eac5aac6f11d965e35f5aa77392fdd2d08c0412c855eedc15`。
+- 发布APK在测试手机覆盖安装成功；本轮未重新跑全部手机自动化流程。构建、Lint、JVM测试通过。
+- 下一轮从“下次顺序”第1项继续；不再重复创建本版本Release。
