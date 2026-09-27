@@ -1,101 +1,53 @@
-## 最新进度：v0.0.3（2026-09-27）
-
-独立 App 已在小米 15 Ultra / Android 16 上完成一次真实淘金币签到：启动淘宝、按控件定位进入淘金币、点击签到一次、验证按钮消失及领取状态。短任务前台服务确保切到淘宝后调用进程继续运行，结束即停止。
-
-- 已领取判断同时要求淘金币标题、无签到按钮、赚更多金币及今天；不能仅凭预加载的“已领取”文字。
-- 未识别页面、广告阻挡、权限失败会停止；目前广告需要手动关闭后重试。
-- 只支持当前实测页面的每日签到，不做额外赚币任务。淘宝改版可能需要更新选择器。
-- 构建、Lint 和 JVM 测试通过。页面截图及诊断数据不提交；最后一份控件树仅保存在设备 App 私有目录。
-- MaaFwApp 版本尚未实现，下文旧阶段记录供追溯。
-
----
-
 # Android Personal Agent Runtime
 
-一个逐步开发的 Android 个人自动化实验项目，优先使用确定性自动化。
+一个用 Shizuku 在手机上执行确定性自动化的小型 Android 实验项目。当前用淘宝每日签到验证“启动其他 App → 读取页面 → 点击 → 检查结果”的完整链路。
 
-## 当前状态
+**早期预览版，欢迎少量用户试用和反馈。只在小米 15 Ultra / Android 16 上实测，不保证其他设备或淘宝版本兼容。** 与淘宝、阿里巴巴无隶属关系。
 
-- 已阅读 MAA-Meow 源码，参考提交：`ad0c95b2230f9d3aa10d546dc0d226e83d4988a8`。
-- 已验证 Mac 可通过 USB adb 连接测试手机（Android 16 / API 36）。
-- 已确认手机安装淘宝且 Shizuku 服务正在运行。
-- 已实现第一步连接测试：授权、绑定 UserService、读取远端 UID/PID、断开连接。
-- 已实现并真机验证第二步：通过 UserService 启动淘宝；尚未实现输入注入。
+- [下载预览 APK](https://github.com/Ozzz-cainiao/android-personal-agent-runtime/releases)
+- [新手安装与配置](docs/GETTING_STARTED.md)
+- [反馈问题](https://github.com/Ozzz-cainiao/android-personal-agent-runtime/issues)
+- [开发存档与下一步](docs/CHECKPOINT.md)
 
-## 第一版代码入口
+## 现在可以做什么
 
-| 文件 | 职责 |
+| 功能 | 状态 |
 | --- | --- |
-| `app/src/main/java/io/github/ozzz/personalagent/MainActivity.kt` | 连接、启动、断开按钮与状态日志；页面销毁时释放连接 |
-| `app/src/main/java/io/github/ozzz/personalagent/ShizukuRuntimeClient.kt` | Shizuku 授权、绑定、超时、断连与身份验证 |
-| `app/src/main/java/io/github/ozzz/personalagent/AutomationUserService.kt` | 特权对象：读取 UID/PID、解析 Launcher Activity 并执行通用应用启动 |
-| `app/src/main/java/io/github/ozzz/personalagent/CommandRunner.kt` | 参数数组执行、超时、并发读取有限长度输出、启动结果判定 |
-| `app/src/main/java/io/github/ozzz/personalagent/TaobaoSmokeTask.kt` | 淘宝测试任务，保存业务目标包名 |
-| `app/src/main/aidl/io/github/ozzz/personalagent/IAutomationService.aidl` | 跨进程接口契约 |
+| Shizuku 授权、独立 shell UserService、启动淘宝 | 已实机验证 |
+| 自动进入淘金币、每日签到、判断今日已签到 | 已实机验证 |
+| 快速赚：到访 +10、好物沉浸看 +30 | 实验代码已加入；用 adb 探索确认奖励到账，新代码领奖分支待任务刷新后验收 |
+| 趣味课堂 | 手动编排 adb 测试成功，尚未实现通用答题代码 |
+| 清单浏览、蚂蚁庄园、额外奖励 | 未实现；清单浏览测试未计入任务进度 |
+| 自动关闭广告 | 未实现；请关闭弹窗后重试 |
 
-UI 和 UserService 运行在不同进程。普通 App 的 UID 不会因授权而改变；通过按钮确认远端 UID 为 `2000`（shell）或 `0`（root），且 PID 与 App 不同，才算特权连接通过。本阶段 Activity 销毁会断开服务，尚未实现后台任务生命周期。
+当前需要手机解锁亮屏，用户点击按钮开始。没有定时、自动解锁、无人值守、AI、云服务或 VirtualDisplay。MaaFwApp 版本尚未实现。
 
-## 构建与调试
+## 使用与反馈
 
-固定构建版本：JDK 17、Gradle 8.11.1、Android Gradle Plugin 8.10.1、Kotlin 2.1.20、Android SDK Platform 36、Build Tools 35.0.0。仅需要命令行工具，不需要 NDK 或模拟器。
+先按新手指南启动 Shizuku，再安装 APK、授权并测试连接，最后点击“领取今日淘金币”。运行时不要切换页面或操作其他 App。返回本 App 看日志，可点“取消任务 / 断开连接”。未知页面停止执行，避免盲点。
 
-本次已将工具安装到 Mac 的 `~/Library/Android/personal-agent-env`。在这台 Mac 上可直接执行 `./scripts/build-local.sh`，默认构建 Debug APK 并运行 Lint；也可传入 Gradle 参数。该脚本不会修改全局 shell 配置。Android Studio 的 Gradle JDK 可选择此目录下的 `amazon-corretto-17.jdk/Contents/Home`，SDK 选择 `sdk` 子目录。本机 SDK 路径在被 Git 忽略的 `local.properties` 中。
+请反馈：手机型号、Android/系统版本、淘宝版本、本 App 版本、操作步骤、实际日志。截图请遮盖昵称、订单、余额和其他个人信息，不要上传完整控件树。
 
-Gradle 8.11.1 下载包已对照官方 SHA-256 校验：`f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6`，Wrapper 也固定了该校验值。
+## 架构与构建
 
-配置 `JAVA_HOME` 指向 JDK，`ANDROID_HOME` 指向 Android SDK 后：
+`MainActivity → ShizukuRuntimeClient → AIDL → AutomationUserService`。普通 App 不会变成 shell；通过 Shizuku 绑定独立特权进程执行系统命令及读取控件树。`TaobaoCoinTask` / `TaobaoQuickTask` 保存业务规则，`AutomationRuntime` 提供通用操作。
+
+任务切入淘宝后由短任务前台服务维持运行，结束后停止。页面选择器依赖当前淘宝布局，UI 改版可能失效。当前 App 不申请互联网权限、无遥测；调试控件树保存在 App 私有目录，卸载会删除。目标淘宝自身仍使用网络。
+
+开发环境：JDK 17、Android SDK Platform 36、Build Tools 35.0.0。Gradle Wrapper 固定 8.11.1；AGP 8.10.1、Kotlin 2.1.20。设置 JAVA_HOME、ANDROID_HOME（或 local.properties）后：
 
 ```sh
 ./gradlew assembleDebug lintDebug testDebugUnitTest
 adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell am start -n io.github.ozzz.personalagent/.MainActivity
-adb logcat -v time 'PersonalAgent:I' 'AndroidRuntime:E' '*:S'
+adb logcat -v time 'PersonalAgent:I' '*:S'
 ```
 
-也可以使用 Android Studio 打开项目根目录。使用 Shizuku UserService 时应通过完整 APK 安装更新代码，不依赖 Apply Changes 更新远端进程。
+Android Studio 可直接打开项目。`scripts/build-local.sh` 仅是作者 Mac 的工具链入口，其他机器使用 Wrapper。更新 Shizuku 服务代码请安装完整 APK。
 
-首次测试：打开 **Personal Agent** → 点击 **测试 Shizuku 连接** → 在 Shizuku 弹窗允许 → 等待页面出现 `[通过] UserService uid=2000 pid=...`。
+## 发布、参考与授权
 
-启动测试：点击 **启动淘宝（不点击）**，自动完成连接与授权检查后启动淘宝；返回 Personal Agent 查看退出码、输出、耗时。淘宝入口通过 `cmd package resolve-activity` 动态解析，随后在 UserService 内运行 `am start -W`，不 force-stop 淘宝。App 不在 `onStop` 取消本次操作，因此淘宝进入前台后日志仍能返回。
+预览附件为 **Debug 测试 APK**，可安装但不是正式生产签名版本。未来切换签名可能需要卸载旧版；当前无需保留业务数据。不要用于敏感业务自动化。
 
-解析命令限时 5 秒，启动命令限时 8 秒；stdout/stderr 分别最多保留 8 KiB，同时持续排空管道。客户端另外设置连接与操作超时。退出码 0 还需配合 `Status: ok` 且无已知失败输出才判为命令完成，页面效果仍需另行验证。
+参考 [MAA-Meow](https://github.com/Aliothmoon/MAA-Meow)（AGPL-3.0）和 [MaaFwApp](https://github.com/Aliothmoon/MaaFwApp)（AGPL-3.0）；当前未复制这两个项目源码。使用 [Shizuku API](https://github.com/RikkaApps/Shizuku-API) 13.1.5（Apache-2.0），遵守依赖自身许可证。后续引入第三方代码时逐项记录来源及许可证。
 
-点击 **断开连接** 后应能再次测试。拒绝授权应显示明确提示；不要为了测试本 App 而停止其他 App 正在使用的 Shizuku 服务。若要验证 Shizuku 停止场景，应先确认其他任务可以中断。
-
-### 验证记录
-
-- USB adb、Android 16 / API 36、淘宝安装状态、Shizuku 服务进程：已确认。
-- `assembleDebug lintDebug`：通过。Lint 为 0 errors、8 warnings（版本更新提示、备份配置、占位图标和测试页面国际化提示）。
-- 持久工具目录与依赖缓存：已通过 `./scripts/build-local.sh --offline --console=plain assembleDebug lintDebug` 离线复验。
-- APK 安装与启动：通过。首次安装曾被小米的 USB 安装限制拒绝；用户开启 USB 安装后重试成功。
-- 2026-09-26 真机首次授权与 UserService 绑定：通过。App `uid=10417 pid=24276`；远端 `uid=2000 pid=32256`，确认为独立 shell 进程。
-- 断开后重连：通过。日志确认旧服务执行 `SERVICE_DESTROY`，重连创建新进程 `uid=2000 pid=315`；`ps` 确认进程名为 `io.github.ozzz.personalagent:runtime`。PID 仅是本次运行证据，不应写入程序。
-- 0.0.2：`assembleDebug lintDebug testDebugUnitTest` 通过；5 个单元测试覆盖大输出、超时、非零退出、错误入口解析、启动成功/失败判定，0 failures、0 errors。Lint 仍为 0 errors、8 warnings。
-- 2026-09-26 17:21 真机淘宝启动：通过。由测试 App 按钮触发，UserService `uid=2000` 解析 `com.taobao.taobao/com.taobao.tao.welcome.Welcome` 并启动，`Status: ok`、`LaunchState: COLD`，解析及启动总耗时 914ms。随后 `dumpsys activity activities` 确认 `topResumedActivity` 为淘宝 `com.taobao.tao.TBMainActivity`，本轮未点击淘宝内容。
-- 未真机测试：拒绝授权、服务超时、Shizuku 停止、屏幕旋转、目标未安装；尚未实现点击和脱离电脑的完整流程。
-
-## MVP 0
-
-点击“测试自动化” → 通过 Shizuku 启动淘宝 → 等待约 2.5 秒 → 指定坐标点击一次 → 记录结果。
-
-计划采用官方 Shizuku UserService，在特权进程中执行系统 `am start` 和 `input tap`。淘宝任务参数与通用执行器分离。命令完成不代表页面验证成功，第一阶段采用人工验收。
-
-## 分步验收
-
-1. 最小 App：申请 Shizuku 授权、绑定 UserService、显示远端 UID/PID。
-2. 单独验证启动淘宝。
-3. 单独验证安全位置点击。
-4. 串联完整流程，并验证拔掉 USB 后仍可运行。
-
-第一阶段不引入 AI、OCR、截图识别、虚拟显示器、解锁、定时任务、数据库或云服务。
-
-## 参考与许可证
-
-- [MAA-Meow](https://github.com/Aliothmoon/MAA-Meow)：整体采用 AGPL-3.0，第三方代码另有声明。
-- [Shizuku API](https://github.com/RikkaApps/Shizuku-API)：官方接口与 UserService 文档。
-
-当前没有复制 MAA-Meow 源码。未来若引入第三方代码，将记录来源、版本、修改和适用许可证。本项目自身许可证尚未确定。
-
-## 开发方式
-
-每次只完成一个最小闭环：明确目标 → 阅读相关源码 → 最少改动 → 构建与真机验证 → 提交并同步 GitHub。提交说明区分已验证结果与待验证事项。
+**本项目自身许可证尚未确定。公开源码不等于已授予任意复制、修改和分发许可。** 许可证选择列入后续发布事项。

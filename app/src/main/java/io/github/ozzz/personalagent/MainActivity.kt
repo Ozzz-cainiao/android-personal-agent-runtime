@@ -47,10 +47,12 @@ class MainActivity : Activity() {
         val test = Button(this).apply { text = "测试 Shizuku 连接" }
         val launch = Button(this).apply { text = "启动淘宝（不点击）" }
         val inspect = Button(this).apply { text = "领取今日淘金币" }
+        val quick = Button(this).apply { text = "快速赚金币（测试）" }
         val disconnect = Button(this).apply { text = "取消任务 / 断开连接" }
         root.addView(test)
         root.addView(launch)
         root.addView(inspect)
+        root.addView(quick)
         root.addView(disconnect)
         logView = TextView(this).apply {
             textSize = 14f
@@ -70,6 +72,7 @@ class MainActivity : Activity() {
             test.isEnabled = !busy
             launch.isEnabled = !busy
             inspect.isEnabled = !busy
+            quick.isEnabled = !busy
         }
         test.setOnClickListener { client.testConnection() }
         launch.setOnClickListener { TaobaoSmokeTask.launch(client) }
@@ -80,6 +83,9 @@ class MainActivity : Activity() {
                 }
             }
         }
+        quick.setOnClickListener { client.runTask { runtime ->
+            TaobaoQuickTask.run(runtime) { xml -> java.io.File(filesDir, "quick-ui.xml").writeText(xml) }
+        } }
         disconnect.setOnClickListener { client.disconnect() }
     }
 
