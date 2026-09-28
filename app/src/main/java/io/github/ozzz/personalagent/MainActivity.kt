@@ -22,6 +22,11 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!getSharedPreferences("setup", MODE_PRIVATE).getBoolean("complete", false)) {
+            startActivity(android.content.Intent(this, SetupActivity::class.java))
+            finish()
+            return
+        }
         val spacing = (20 * resources.displayMetrics.density).toInt()
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -49,6 +54,11 @@ class MainActivity : Activity() {
         val inspect = Button(this).apply { text = "领取今日淘金币" }
         val quick = Button(this).apply { text = "快速赚金币（测试）" }
         val disconnect = Button(this).apply { text = "取消任务 / 断开连接" }
+        val setup = Button(this).apply {
+            text = "配置检查 / 使用引导"
+            setOnClickListener { startActivity(android.content.Intent(this@MainActivity, SetupActivity::class.java)) }
+        }
+        root.addView(setup)
         root.addView(test)
         root.addView(launch)
         root.addView(inspect)
@@ -69,6 +79,7 @@ class MainActivity : Activity() {
         client = ShizukuRuntimeClient(this, ::appendLog) { busy ->
             val serviceIntent = android.content.Intent(this, TaskService::class.java)
             if (busy) startForegroundService(serviceIntent) else stopService(serviceIntent)
+            setup.isEnabled = !busy
             test.isEnabled = !busy
             launch.isEnabled = !busy
             inspect.isEnabled = !busy
@@ -104,7 +115,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
-        client.close()
+        if (::client.isInitialized) client.close()
         super.onDestroy()
     }
 }

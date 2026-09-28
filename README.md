@@ -9,6 +9,10 @@
 - [反馈问题](https://github.com/Ozzz-cainiao/android-personal-agent-runtime/issues)
 - [开发存档与下一步](docs/CHECKPOINT.md)
 
+## 0.0.5：安装后按软件内引导配置
+
+首次打开显示配置向导：启动 Shizuku → 授权 → 打开淘宝确认登录 → 进入任务。自动检测服务连接、授权和淘宝安装状态，登录由用户确认。任务页可随时重新打开引导。
+
 ## 现在可以做什么
 
 | 功能 | 状态 |
