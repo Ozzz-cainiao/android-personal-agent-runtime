@@ -1,3 +1,11 @@
+# 最新存档：0.0.7-preview 橙色小助手图标
+
+用户选定六款图标中的02。已用内置image_gen精修为橙色底白色奔跑小助手，保存于app/src/main/res/drawable-nodpi/mascot_icon.png，以bitmap drawable适配Android adaptive icon。README展示同一图片，旧docs/icon.svg仅为历史方案。
+
+本轮只改图标与版本，不更改签到逻辑。发布目标v0.0.7-preview。无线调试尚未配置；新领取后返回桌面仍待次日实测。
+
+---
+
 # 最新存档：点到 0.0.6-preview
 
 仓库已改名 Ozzz-cainiao/diandao；App显示名称改为点到，Gradle项目为Diandao。包名保持io.github.ozzz.personalagent，支持原安装覆盖升级。新增原创矢量自适应图标（绿底白色勾选卡片、黄色圆点），文档预览docs/icon.svg。
