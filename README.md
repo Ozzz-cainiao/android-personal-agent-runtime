@@ -24,7 +24,7 @@
 | 清单浏览、蚂蚁庄园、额外奖励 | 未实现；清单浏览测试未计入任务进度 |
 | 自动关闭广告 | 未实现；请关闭弹窗后重试 |
 
-当前需要手机解锁亮屏，用户点击按钮开始。没有定时、自动解锁、无人值守、AI、云服务或 VirtualDisplay。MaaFwApp 版本尚未实现。
+当前需要手机解锁亮屏，用户点击按钮开始。没有定时、自动解锁、无人值守、AI、云服务或 VirtualDisplay。
 
 ## 使用与反馈
 
@@ -52,6 +52,6 @@ Android Studio 可直接打开项目。`scripts/build-local.sh` 仅是作者 Mac
 
 预览附件为 **Debug 测试 APK**，可安装但不是正式生产签名版本。未来切换签名可能需要卸载旧版；当前无需保留业务数据。不要用于敏感业务自动化。
 
-参考 [MAA-Meow](https://github.com/Aliothmoon/MAA-Meow)（AGPL-3.0）和 [MaaFwApp](https://github.com/Aliothmoon/MaaFwApp)（AGPL-3.0）；当前未复制这两个项目源码。使用 [Shizuku API](https://github.com/RikkaApps/Shizuku-API) 13.1.5（Apache-2.0），遵守依赖自身许可证。后续引入第三方代码时逐项记录来源及许可证。
+使用 [Shizuku API](https://github.com/RikkaApps/Shizuku-API) 13.1.5（Apache-2.0），遵守依赖自身许可证。后续引入第三方代码时逐项记录来源及许可证。
 
 **本项目自身许可证尚未确定。公开源码不等于已授予任意复制、修改和分发许可。** 许可证选择列入后续发布事项。
