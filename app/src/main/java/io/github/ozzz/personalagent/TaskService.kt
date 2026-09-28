@@ -16,7 +16,7 @@ class TaskService : Service() {
         startForeground(1, Notification.Builder(this, "automation")
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentTitle("正在执行淘金币测试")
-            .setContentText("返回 Personal Agent 可取消；任务结束自动停止")
+            .setContentText("返回 点到 可取消；任务结束自动停止")
             .setOngoing(true).build())
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_NOT_STICKY

@@ -7,7 +7,9 @@
     </queries>
     <application
         android:allowBackup="false"
-        android:label="Personal Agent"
+        android:label="点到"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <service android:name=".TaskService" android:exported="false" android:foregroundServiceType="shortService" />

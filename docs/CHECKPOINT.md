@@ -1,3 +1,15 @@
+# 最新存档：点到 0.0.6-preview
+
+仓库已改名 Ozzz-cainiao/diandao；App显示名称改为点到，Gradle项目为Diandao。包名保持io.github.ozzz.personalagent，支持原安装覆盖升级。新增原创矢量自适应图标（绿底白色勾选卡片、黄色圆点），文档预览docs/icon.svg。
+
+每日签到按钮改为“签到并返回桌面”。确认成功或已签到后经Shizuku发送主屏HOME；前台已切换则不发送，返回失败单独报错。失败不返回桌面。快速赚继续使用原始签到函数，不自动退出。
+
+2026-09-28 11:47实测已签到分支：返回桌面exit=0，dumpsys确认com.miui.home/.launcher.Launcher。今日奖励之前已领，新领取后返回分支仅单元测试，待新一天实机验证。构建/Lint/JVM测试通过。无线adb尚未配置，按用户要求留到下一步。不要改动其他正在运行的自动化。
+
+发布目标v0.0.6-preview，APK为Debug预览包。以下保留历史记录供恢复。
+
+---
+
 ## 2026-09-28 每日签到复验
 
 已发布0.0.5版本在测试手机11:15完整执行：启动淘宝、进入淘金币、点击签到一次、读取页面确认成功。shell UserService日志与屏幕“今天”打勾相互印证。未采集领取前余额，不推断本次金币增量。随后出现连续推广弹窗，由调试端手动关闭；App自动关闭广告仍未实现。此次不涉及快速赚任务验收。
@@ -53,7 +65,7 @@
 
 - 仓库已确认为 PUBLIC。
 - 代码存档：`6efcc73eb9d4a1105c9d2e8ebbe36ba5cd08daf0`；发布标签 `v0.0.4-preview` 固定此提交。
-- [预览 Release](https://github.com/Ozzz-cainiao/android-personal-agent-runtime/releases/tag/v0.0.4-preview) 已发布，含APK与SHA256SUMS；确认为prerelease。
+- [预览 Release](https://github.com/Ozzz-cainiao/diandao/releases/tag/v0.0.4-preview) 已发布，含APK与SHA256SUMS；确认为prerelease。
 - APK约2.56MB；SHA-256：`2ce414ed5d53e75eac5aac6f11d965e35f5aa77392fdd2d08c0412c855eedc15`。
 - 发布APK在测试手机覆盖安装成功；本轮未重新跑全部手机自动化流程。构建、Lint、JVM测试通过。
 - 下一轮从“下次顺序”第1项继续；不再重复创建本版本Release。

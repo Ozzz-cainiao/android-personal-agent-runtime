@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "PersonalAgentRuntime"
+rootProject.name = "Diandao"
 include(":app")

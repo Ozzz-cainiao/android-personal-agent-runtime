@@ -8,5 +8,6 @@ interface IAutomationService {
     Bundle getIdentity() = 1;
     Bundle launchApp(String packageName) = 2;
     Bundle tap(String expectedPackage, int x, int y) = 3;
+    Bundle returnHome(String expectedPackage) = 5;
     String dumpUi(String expectedPackage) = 4;
 }

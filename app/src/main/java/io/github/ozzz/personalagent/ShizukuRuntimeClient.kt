@@ -117,7 +117,7 @@ class ShizukuRuntimeClient(
                 bind()
             } else if (Shizuku.shouldShowRequestPermissionRationale()) {
                 finish()
-                report("[授权] 请在 Shizuku 的应用管理中允许 Personal Agent，然后重试。")
+                report("[授权] 请在 Shizuku 的应用管理中允许 点到，然后重试。")
             } else {
                 report("[授权] 请在手机弹窗中选择允许。")
                 // Human authorization is not subject to the service's 15-second timeout.
@@ -190,6 +190,7 @@ class ShizukuRuntimeClient(
                     log("[$name] exit=${value.getInt("exitCode")} 耗时=${value.getLong("elapsedMs")}ms")
                     check(value.getBoolean("success")) { "$name 失败：${value.getString("error")}; ${value.getString("stderr")}" }
                 }
+                override fun returnHome(expectedPackage: String) = command("返回桌面") { service.returnHome(expectedPackage) }
                 override fun launch(packageName: String) = command("启动") { service.launchApp(packageName) }
                 override fun tap(packageName: String, x: Int, y: Int) = command("点击 $x,$y") { service.tap(packageName, x, y) }
                 override fun readUi(packageName: String): String { checkActive(); return service.dumpUi(packageName) }

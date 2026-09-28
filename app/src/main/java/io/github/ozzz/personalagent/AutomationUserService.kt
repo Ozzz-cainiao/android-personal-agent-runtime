@@ -10,6 +10,21 @@ import kotlin.system.exitProcess
 /** Instantiated by Shizuku in a separate shell/root process, not an Android Service. */
 class AutomationUserService : IAutomationService.Stub() {
     @Synchronized
+    override fun returnHome(expectedPackage: String): Bundle {
+        val started = SystemClock.elapsedRealtime()
+        return try {
+            require(LaunchProtocol.validPackage(expectedPackage))
+            val foreground = CommandRunner.run(listOf("/system/bin/dumpsys", "activity", "activities"), 3000, 256000)
+            check(TapProtocol.isForeground(expectedPackage, foreground)) { "目标已不在前台，未发送HOME" }
+            val result = CommandRunner.run(listOf("/system/bin/input", "-d", "0", "keyevent", "KEYCODE_HOME"), 3000)
+            check(!result.timedOut && result.exitCode == 0 && result.stderr.isBlank()) { "HOME命令失败" }
+            Bundle().apply { putBoolean("success", true); putInt("exitCode", 0) }
+        } catch (e: Exception) {
+            Bundle().apply { putBoolean("success", false); putInt("exitCode", -1); putString("error", e.message) }
+        }.apply { putLong("elapsedMs", SystemClock.elapsedRealtime() - started) }
+    }
+
+    @Synchronized
     override fun dumpUi(expectedPackage: String): String {
         require(LaunchProtocol.validPackage(expectedPackage))
         val identity = Binder.clearCallingIdentity()

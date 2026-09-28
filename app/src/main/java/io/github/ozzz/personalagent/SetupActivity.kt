@@ -53,7 +53,7 @@ class SetupActivity : Activity() {
         label("2. 允许本 App 使用 Shizuku", 20f)
         authorize = button("授权 Shizuku") {
             runCatching { Shizuku.requestPermission(1010) }
-                .onFailure { toast("授权未成功，请到 Shizuku 应用管理中允许 Personal Agent") }
+                .onFailure { toast("授权未成功，请到 Shizuku 应用管理中允许 点到") }
         }
         label("授权后可读取当前页面及模拟点击。你可随时在 Shizuku 中撤销授权。小米若不能点击，请检查开发者选项中的“USB 调试（安全设置）”。")
         label("3. 准备淘宝", 20f)

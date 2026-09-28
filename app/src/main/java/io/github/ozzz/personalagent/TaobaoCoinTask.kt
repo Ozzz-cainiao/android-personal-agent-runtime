@@ -10,6 +10,14 @@ object TaobaoCoinTask {
         page.findExact("赚更多金币") != null &&
         page.findExact("今天") != null
 
+    fun runAndReturnHome(runtime: AutomationRuntime, record: (String) -> Unit = {}): String {
+        val result = run(runtime, record)
+        runtime.log("[签到] $result；准备返回桌面")
+        try { runtime.returnHome(PACKAGE) }
+        catch (e: Exception) { throw IllegalStateException("签到已确认，但返回桌面失败：${e.message}", e) }
+        return "$result；已发送返回桌面指令"
+    }
+
     fun run(runtime: AutomationRuntime, record: (String) -> Unit = {}): String {
         fun read(): UiSnapshot {
             val xml = runtime.readUi(PACKAGE)

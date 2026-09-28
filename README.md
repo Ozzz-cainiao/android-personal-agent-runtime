@@ -1,12 +1,12 @@
-# Android Personal Agent Runtime
+# Android 点到 Runtime
 
 一个用 Shizuku 在手机上执行确定性自动化的小型 Android 实验项目。当前用淘宝每日签到验证“启动其他 App → 读取页面 → 点击 → 检查结果”的完整链路。
 
 **早期预览版，欢迎少量用户试用和反馈。只在小米 15 Ultra / Android 16 上实测，不保证其他设备或淘宝版本兼容。** 与淘宝、阿里巴巴无隶属关系。
 
-- [下载预览 APK](https://github.com/Ozzz-cainiao/android-personal-agent-runtime/releases)
+- [下载预览 APK](https://github.com/Ozzz-cainiao/diandao/releases)
 - [新手安装与配置](docs/GETTING_STARTED.md)
-- [反馈问题](https://github.com/Ozzz-cainiao/android-personal-agent-runtime/issues)
+- [反馈问题](https://github.com/Ozzz-cainiao/diandao/issues)
 - [开发存档与下一步](docs/CHECKPOINT.md)
 
 ## 0.0.5：安装后按软件内引导配置
@@ -28,7 +28,7 @@
 
 ## 使用与反馈
 
-先按新手指南启动 Shizuku，再安装 APK、授权并测试连接，最后点击“领取今日淘金币”。运行时不要切换页面或操作其他 App。返回本 App 看日志，可点“取消任务 / 断开连接”。未知页面停止执行，避免盲点。
+先按新手指南启动 Shizuku，再安装 APK、授权并测试连接，最后点击“签到并返回桌面”。运行时不要切换页面或操作其他 App。返回本 App 看日志，可点“取消任务 / 断开连接”。未知页面停止执行，避免盲点。
 
 请反馈：手机型号、Android/系统版本、淘宝版本、本 App 版本、操作步骤、实际日志。截图请遮盖昵称、订单、余额和其他个人信息，不要上传完整控件树。
 

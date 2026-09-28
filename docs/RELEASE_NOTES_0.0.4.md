@@ -4,7 +4,7 @@
 
 ## 开始使用
 
-下载附件 `personal-agent-0.0.4-preview-debug.apk`，按[新手指南](https://github.com/Ozzz-cainiao/android-personal-agent-runtime/blob/main/docs/GETTING_STARTED.md)启动 Shizuku、授权，再点击领取今日淘金币。
+下载附件 `personal-agent-0.0.4-preview-debug.apk`，按[新手指南](https://github.com/Ozzz-cainiao/diandao/blob/main/docs/GETTING_STARTED.md)启动 Shizuku、授权，再点击签到并返回桌面。
 
 ## 兼容与限制
 

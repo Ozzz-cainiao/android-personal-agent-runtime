@@ -11,11 +11,25 @@ class TaobaoCoinTaskTest {
     private class Runtime(val pages: List<String>) : AutomationRuntime {
         var index = 0
         var taps = 0
+        var homes = 0
+        override fun returnHome(expectedPackage: String) { homes++ }
         override fun launch(packageName: String) {}
         override fun readUi(packageName: String) = pages[minOf(index++, pages.lastIndex)]
         override fun tap(packageName: String, x: Int, y: Int) { taps++ }
         override fun pause(milliseconds: Long) {}
         override fun log(message: String) {}
+    }
+
+    @Test fun returnsHomeOnlyAfterConfirmedSuccess() {
+        val good = Runtime(listOf(page("淘金币标题", "签到领金币"), page("淘金币标题", "赚更多金币", "今天")))
+        TaobaoCoinTask.runAndReturnHome(good)
+        assertEquals(1, good.homes)
+        val already = Runtime(listOf(page("淘金币标题", "赚更多金币", "今天")))
+        TaobaoCoinTask.runAndReturnHome(already)
+        assertEquals(1, already.homes)
+        val bad = Runtime(listOf(page("淘金币标题", "签到领金币")))
+        assertTrue(runCatching { TaobaoCoinTask.runAndReturnHome(bad) }.isFailure)
+        assertEquals(0, bad.homes)
     }
 
     @Test fun hiddenClaimedTextDoesNotSkipClaim() {
