@@ -4,6 +4,36 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CommandRunnerTest {
+    private fun foreground(display: Int = 0, packageName: String = "com.taobao.taobao") =
+        CommandRunner.Result(0, "Display #$display (activities from top to bottom):\n" +
+            "  topResumedActivity=ActivityRecord{123 u0 $packageName/.Main t1}", "", false)
+
+    @Test fun swipeTargetsPrimaryDisplayWithBoundedDuration() {
+        assertEquals(listOf("/system/bin/input", "-d", "0", "swipe", "500", "1600", "500", "800", "600"),
+            SwipeProtocol.command("com.taobao.taobao", 500, 1600, 500, 800, 600, foreground()))
+    }
+
+    @Test fun swipeRejectsOtherAppsVirtualDisplaysAndFailedInspection() {
+        val states = listOf(foreground(packageName = "com.example.other"), foreground(display = 2),
+            foreground().copy(timedOut = true), foreground().copy(exitCode = 1),
+            CommandRunner.Result(0, "", "", false))
+        for (state in states) assertTrue(runCatching {
+            SwipeProtocol.command("com.taobao.taobao", 500, 1600, 500, 800, 600, state)
+        }.isFailure)
+    }
+
+    @Test fun swipeRejectsInvalidGestureWithoutInjectingInput() {
+        for (duration in listOf(-1, 0, 99, 1501, Int.MAX_VALUE)) assertTrue(runCatching {
+            SwipeProtocol.command("com.taobao.taobao", 500, 1600, 500, 800, duration, foreground())
+        }.isFailure)
+        assertTrue(runCatching {
+            SwipeProtocol.command("com.taobao.taobao", -1, 1600, 500, 800, 600, foreground())
+        }.isFailure)
+        assertTrue(runCatching {
+            SwipeProtocol.command("com.taobao.taobao", 500, 800, 500, 800, 600, foreground())
+        }.isFailure)
+    }
+
     @Test fun tapRequiresUnambiguousTargetInForeground() {
         fun output(text: String) = CommandRunner.Result(0, "Display #0 (activities from top to bottom):\n" + text, "", false)
         assertTrue(TapProtocol.isForeground("com.example.app", output("  topResumedActivity=ActivityRecord{123 u0 com.example.app/.Main t1}")))

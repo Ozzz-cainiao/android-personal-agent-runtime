@@ -81,3 +81,16 @@ internal object TapProtocol {
         return tops.size == 1 && Regex("\\s" + Regex.escape(packageName) + "/").containsMatchIn(tops.single())
     }
 }
+
+internal object SwipeProtocol {
+    fun command(packageName: String, startX: Int, startY: Int, endX: Int, endY: Int,
+                durationMs: Int, foreground: CommandRunner.Result): List<String> {
+        require(LaunchProtocol.validPackage(packageName))
+        require(listOf(startX, startY, endX, endY).all { it >= 0 })
+        require(startX != endX || startY != endY) { "滑动起终点不能相同" }
+        require(durationMs in 100..1500) { "滑动时长必须在100至1500毫秒内" }
+        check(TapProtocol.isForeground(packageName, foreground)) { "目标 App 未处于主屏前台，取消滑动" }
+        return listOf("/system/bin/input", "-d", "0", "swipe", startX.toString(), startY.toString(),
+            endX.toString(), endY.toString(), durationMs.toString())
+    }
+}

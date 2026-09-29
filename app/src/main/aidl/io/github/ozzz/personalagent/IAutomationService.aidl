@@ -10,4 +10,5 @@ interface IAutomationService {
     Bundle tap(String expectedPackage, int x, int y) = 3;
     Bundle returnHome(String expectedPackage) = 5;
     String dumpUi(String expectedPackage) = 4;
+    Bundle swipe(String expectedPackage, int startX, int startY, int endX, int endY, int durationMs) = 6;
 }

@@ -16,6 +16,9 @@ class TaobaoCoinTaskTest {
         override fun launch(packageName: String) {}
         override fun readUi(packageName: String) = pages[minOf(index++, pages.lastIndex)]
         override fun tap(packageName: String, x: Int, y: Int) { taps++ }
+        override fun swipe(packageName: String, startX: Int, startY: Int, endX: Int, endY: Int, durationMs: Int) {
+            error("每日签到不应调用滑动")
+        }
         override fun pause(milliseconds: Long) {}
         override fun log(message: String) {}
     }

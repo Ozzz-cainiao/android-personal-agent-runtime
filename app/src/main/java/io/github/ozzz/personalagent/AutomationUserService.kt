@@ -10,6 +10,30 @@ import kotlin.system.exitProcess
 /** Instantiated by Shizuku in a separate shell/root process, not an Android Service. */
 class AutomationUserService : IAutomationService.Stub() {
     @Synchronized
+    override fun swipe(expectedPackage: String, startX: Int, startY: Int, endX: Int, endY: Int, durationMs: Int): Bundle {
+        val started = SystemClock.elapsedRealtime()
+        var result: CommandRunner.Result? = null
+        return try {
+            val foreground = CommandRunner.run(listOf("/system/bin/dumpsys", "activity", "activities"), 3000, 256000)
+            val command = SwipeProtocol.command(expectedPackage, startX, startY, endX, endY, durationMs, foreground)
+            Log.i("PersonalAgent", "SWIPE_BEGIN package=$expectedPackage display=0 from=$startX,$startY to=$endX,$endY durationMs=$durationMs")
+            result = CommandRunner.run(command, 4000)
+            check(!result.timedOut && result.exitCode == 0 && result.stderr.isBlank() &&
+                !result.stdout.contains("Error", ignoreCase = true)) { "滑动命令未确认成功" }
+            Bundle().apply { putBoolean("success", true) }
+        } catch (e: Exception) {
+            Log.e("PersonalAgent", "SWIPE_FAILED", e)
+            Bundle().apply { putBoolean("success", false); putString("error", e.message) }
+        }.apply {
+            putInt("exitCode", result?.exitCode ?: -1)
+            putBoolean("timedOut", result?.timedOut ?: false)
+            putString("stderr", result?.stderr.orEmpty())
+            putLong("elapsedMs", SystemClock.elapsedRealtime() - started)
+            Log.i("PersonalAgent", "SWIPE_RESULT success=${getBoolean("success")} exit=${getInt("exitCode")}")
+        }
+    }
+
+    @Synchronized
     override fun returnHome(expectedPackage: String): Bundle {
         val started = SystemClock.elapsedRealtime()
         return try {

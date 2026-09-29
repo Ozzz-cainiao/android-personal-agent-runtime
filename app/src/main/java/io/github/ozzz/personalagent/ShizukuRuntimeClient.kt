@@ -193,6 +193,10 @@ class ShizukuRuntimeClient(
                 override fun returnHome(expectedPackage: String) = command("返回桌面") { service.returnHome(expectedPackage) }
                 override fun launch(packageName: String) = command("启动") { service.launchApp(packageName) }
                 override fun tap(packageName: String, x: Int, y: Int) = command("点击 $x,$y") { service.tap(packageName, x, y) }
+                override fun swipe(packageName: String, startX: Int, startY: Int, endX: Int, endY: Int, durationMs: Int) =
+                    command("滑动 $startX,$startY → $endX,$endY") {
+                        service.swipe(packageName, startX, startY, endX, endY, durationMs)
+                    }
                 override fun readUi(packageName: String): String { checkActive(); return service.dumpUi(packageName) }
                 override fun pause(milliseconds: Long) { checkActive(); Thread.sleep(milliseconds); checkActive() }
             }
