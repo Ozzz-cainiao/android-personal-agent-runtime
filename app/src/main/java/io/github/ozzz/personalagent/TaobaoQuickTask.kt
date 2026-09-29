@@ -3,6 +3,18 @@ package io.github.ozzz.personalagent
 /** Only the two task types observed on-device; unknown offers are never clicked. */
 object TaobaoQuickTask {
     private const val PACKAGE = "com.taobao.taobao"
+    /** The reward badge can expose '已得' and '30' as separate adjacent nodes. */
+    internal fun browseRewardEarned(page: UiSnapshot): Boolean {
+        if (page.findExact("已得30") != null || page.findExact("已得 30") != null) return true
+        return page.nodes.filter { it.usable && it.named("已得") }.any { label ->
+            val height = label.bottom - label.top
+            page.nodes.count { amount ->
+                amount.usable && amount.named("30") && amount.x > label.x &&
+                    amount.left >= label.right - height / 2 && amount.left <= label.right + height &&
+                    amount.top < label.bottom && amount.bottom > label.top
+            } == 1
+        }
+    }
     internal fun reward(page: UiSnapshot, title: String, amount: String): UiNode? {
         val label = page.findExact(title) ?: return null
         return page.nodes.filter { it.usable && it.named(amount) && it.left > label.right &&
@@ -42,9 +54,7 @@ object TaobaoQuickTask {
         repeat(10) {
             runtime.pause(3000)
             page = read()
-            val completed = page.nodes.any { it.usable && it.text.contains("任务已完成") }
-            val earned = page.nodes.any { it.usable && it.text.contains("已得30") }
-            if (completed && earned) return "好物沉浸看页面确认：任务已完成，已得30；其他类型未执行"
+            if (browseRewardEarned(page)) return "好物沉浸看页面确认：已得30；其他类型未执行"
         }
         error("浏览任务未提供可确认的完成结果，已停止；未重复点击")
     }
