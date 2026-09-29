@@ -50,4 +50,27 @@ class TaobaoCoinTaskTest {
         assertTrue(runCatching { TaobaoCoinTask.run(runtime) }.isFailure)
         assertEquals(1, runtime.taps)
     }
+
+    @Test fun homeEntryThenNewClaimReturnsHome() {
+        val runtime = Runtime(listOf(page("领淘金币"), page("淘金币标题", "签到领金币"),
+            page("淘金币标题", "赚更多金币", "今天")))
+        TaobaoCoinTask.runAndReturnHome(runtime)
+        assertEquals(2, runtime.taps)
+        assertEquals(1, runtime.homes)
+    }
+
+    @Test fun obscuredResultDoesNotReturnHomeOrRetryClaim() {
+        val runtime = Runtime(listOf(page("淘金币标题", "签到领金币"),
+            page("淘金币标题", "今天", "活动推广")))
+        assertTrue(runCatching { TaobaoCoinTask.runAndReturnHome(runtime) }.isFailure)
+        assertEquals(1, runtime.taps)
+        assertEquals(0, runtime.homes)
+    }
+
+    @Test fun unknownPageDoesNotClickOrReturnHome() {
+        val runtime = Runtime(listOf(page("签到领金币", "今天", "赚更多金币")))
+        assertTrue(runCatching { TaobaoCoinTask.runAndReturnHome(runtime) }.isFailure)
+        assertEquals(0, runtime.taps)
+        assertEquals(0, runtime.homes)
+    }
 }
