@@ -19,5 +19,3 @@ keystore.properties
 *.log
 captures/
 
-# Independent yard lidar repository (managed with its own Git history)
-/yard-lidar-alignment/
