@@ -1,3 +1,13 @@
+# 双线开发存档（2026-09-29）
+
+已创建独立公开仓库 https://github.com/Ozzz-cainiao/diandao-maafw ，本地位于 `parallel/diandao-maafw`（独立 Git 仓库，本仓库通过本地 exclude 忽略）。继续框架迁移时先读新仓库的 `docs/CHECKPOINT.md`。
+
+旧版点到代码、包名和现有发布不变。新版点到实验版使用不同包名并采用资源 Pipeline，实现每日淘金币签到与返回桌面的实验流程。6 项离线测试及已有截图 OCR 检查通过；不代表真机领取已验收。新仓库 CI 正在处理首次 APK 构建，最新结果以对应 Actions 为准。
+
+短期双线并行，正式切换条件在新仓库 `docs/MIGRATION.md`；未达到可发布验收前不替换本仓库。
+
+---
+
 # 最新存档：0.0.7-preview 橙色小助手图标
 
 用户选定六款图标中的02。已用内置image_gen精修为橙色底白色奔跑小助手，保存于app/src/main/res/drawable-nodpi/mascot_icon.png，以bitmap drawable适配Android adaptive icon。README展示同一图片，旧docs/icon.svg仅为历史方案。
