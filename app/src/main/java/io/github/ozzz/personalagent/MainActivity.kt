@@ -52,7 +52,7 @@ class MainActivity : Activity() {
         val test = Button(this).apply { text = "测试 Shizuku 连接" }
         val launch = Button(this).apply { text = "启动淘宝（不点击）" }
         val inspect = Button(this).apply { text = "签到并返回桌面" }
-        val quick = Button(this).apply { text = "快速赚金币（测试）" }
+        val quick = Button(this).apply { text = "快速赚并返回桌面（测试）" }
         val disconnect = Button(this).apply { text = "取消任务 / 断开连接" }
         val setup = Button(this).apply {
             text = "配置检查 / 使用引导"
@@ -95,7 +95,7 @@ class MainActivity : Activity() {
             }
         }
         quick.setOnClickListener { client.runTask { runtime ->
-            TaobaoQuickTask.run(runtime) { xml -> java.io.File(filesDir, "quick-ui.xml").writeText(xml) }
+            TaobaoQuickTask.runAndReturnHome(runtime) { xml -> java.io.File(filesDir, "quick-ui.xml").writeText(xml) }
         } }
         disconnect.setOnClickListener { client.disconnect() }
     }

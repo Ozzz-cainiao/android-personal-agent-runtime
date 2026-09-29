@@ -4,6 +4,79 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TaobaoQuickTaskTest {
+    private fun pending(): UiSnapshot = UiSnapshot(listOf(
+        UiNode("", "", "", 0, 0, 1080, 2400, false, true, true),
+        node("加入购物车", 300, 2100), node("立即购买", 700, 2100),
+        node("浏览15秒", 870, 1300), node("30", 930, 1360)))
+    private fun done() = UiSnapshot(listOf(node("已得30", 870, 1300)))
+    private class Runtime : AutomationRuntime {
+        var swipes = 0
+        var homes = 0
+        var failSwipe = false
+        var failHome = false
+        val pages = java.util.ArrayDeque<String>()
+        override fun launch(packageName: String) {}
+        override fun tap(packageName: String, x: Int, y: Int) {}
+        override fun readUi(packageName: String) = pages.removeFirst()
+        override fun pause(milliseconds: Long) {}
+        override fun log(message: String) {}
+        override fun returnHome(expectedPackage: String) { check(!failHome) { "前台切换" }; homes++ }
+        override fun swipe(packageName: String, startX: Int, startY: Int, endX: Int, endY: Int, durationMs: Int) {
+            check(!failSwipe) { "任务取消或前台切换" }
+            assertEquals("com.taobao.taobao", packageName)
+            assertEquals(650, durationMs)
+            assertTrue(startY > endY && startY < 1800 && endY > 300)
+            swipes++
+        }
+    }
+    @Test fun swipesUntilConfirmedThenImmediatelyStops() {
+        val runtime = Runtime()
+        val pages = java.util.ArrayDeque(listOf(pending(), pending(), done()))
+        assertTrue(TaobaoQuickTask.browse(runtime) { pages.removeFirst() }.contains("已得30"))
+        assertEquals(2, runtime.swipes)
+    }
+    @Test fun alreadyEarnedDoesNotSwipe() {
+        val runtime = Runtime()
+        TaobaoQuickTask.browse(runtime) { done() }
+        assertEquals(0, runtime.swipes)
+    }
+    @Test fun stopsAtLimitWithoutInventingSuccess() {
+        val runtime = Runtime()
+        assertTrue(runCatching { TaobaoQuickTask.browse(runtime) { pending() } }.isFailure)
+        assertEquals(10, runtime.swipes)
+        assertEquals(0, runtime.homes)
+    }
+    @Test fun unknownPageAndFailedGestureStopImmediately() {
+        val runtime = Runtime()
+        assertTrue(runCatching { TaobaoQuickTask.browse(runtime) { UiSnapshot(emptyList()) } }.isFailure)
+        assertEquals(0, runtime.swipes)
+        runtime.failSwipe = true
+        assertTrue(runCatching { TaobaoQuickTask.browse(runtime) { pending() } }.isFailure)
+        assertEquals(0, runtime.swipes)
+    }
+    private fun xml(page: UiSnapshot) = "<hierarchy>" + page.nodes.joinToString("") {
+        "<node text=\"${it.text}\" bounds=\"${it.left},${it.top},${it.right},${it.bottom}\" enabled=\"true\" visible=\"true\"/>"
+    } + "</hierarchy>"
+    private fun readyRuntime() = Runtime().apply {
+        val signed = UiSnapshot(listOf(node("淘金币标题", 0, 0), node("今天", 100, 200),
+            node("赚更多金币", 200, 300), node("40秒快速赚", 200, 200)))
+        pages.add(xml(signed)); pages.add(xml(signed))
+        pages.add(xml(UiSnapshot(listOf(node("今日速赚", 0, 0), node("好物沉浸看", 100, 300), node("+30", 500, 300)))))
+        pages.add(xml(pending())); pages.add(xml(done()))
+    }
+    @Test fun completeTaskSwipesAndReturnsHome() {
+        val runtime = readyRuntime()
+        assertTrue(TaobaoQuickTask.runAndReturnHome(runtime).contains("返回桌面"))
+        assertEquals(1, runtime.swipes)
+        assertEquals(1, runtime.homes)
+    }
+    @Test fun homeFailurePreservesEarnedResult() {
+        val runtime = readyRuntime().apply { failHome = true }
+        val error = runCatching { TaobaoQuickTask.runAndReturnHome(runtime) }.exceptionOrNull()
+        assertTrue(error?.message.orEmpty().contains("已得30"))
+        assertTrue(error?.message.orEmpty().contains("返回桌面失败"))
+    }
+
     @Test fun recognizesActualSplitEarnedBadgeWithoutExtraCompletionText() {
         val label = UiNode("已得", "", "", 919, 1386, 981, 1428, false, true, true)
         val amount = UiNode("30", "", "", 975, 1386, 1015, 1423, false, true, true)
