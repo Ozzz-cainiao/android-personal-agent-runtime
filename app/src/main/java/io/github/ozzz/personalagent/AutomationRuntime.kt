@@ -2,6 +2,7 @@ package io.github.ozzz.personalagent
 
 /** Small synchronous task API; implemented by the client on its worker thread. */
 interface AutomationRuntime {
+    fun back(expectedPackage: String)
     fun returnHome(expectedPackage: String)
     fun launch(packageName: String)
     fun readUi(packageName: String): String

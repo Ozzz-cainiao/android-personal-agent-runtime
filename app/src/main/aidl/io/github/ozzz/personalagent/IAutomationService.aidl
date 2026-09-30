@@ -11,4 +11,5 @@ interface IAutomationService {
     Bundle returnHome(String expectedPackage) = 5;
     String dumpUi(String expectedPackage) = 4;
     Bundle swipe(String expectedPackage, int startX, int startY, int endX, int endY, int durationMs) = 6;
+    Bundle back(String expectedPackage) = 7;
 }

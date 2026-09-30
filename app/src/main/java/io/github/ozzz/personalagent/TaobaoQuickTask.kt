@@ -1,6 +1,6 @@
 package io.github.ozzz.personalagent
 
-/** Only the two task types observed on-device; unknown offers are never clicked. */
+/** Observed arrival, shopping-list and video tasks; unknown offers are never clicked. */
 object TaobaoQuickTask {
     private const val PACKAGE = "com.taobao.taobao"
     /** The reward badge can expose '已得' and '30' as separate adjacent nodes. */
@@ -75,7 +75,25 @@ object TaobaoQuickTask {
         }
         fun tap(node: UiNode) = runtime.tap(PACKAGE, node.x, node.y)
         runtime.log("[快速赚] 进入淘金币")
-        val signIn = TaobaoCoinTask.run(runtime, record)
+        runtime.launch(PACKAGE)
+        runtime.pause(2500)
+        val initial = read()
+        if (TaobaoListTask.finalRewardShown(initial)) {
+            runtime.log("[清单] 恢复已完成页面：累计60，返回面板核对")
+            runtime.back(PACKAGE)
+            runtime.pause(1000)
+            var recovered = read()
+            for (attempt in 1..4) {
+                if (recovered.findExact("今日速赚") != null && TaobaoListTask.progress(recovered) == 2) break
+                runtime.pause(750)
+                recovered = read()
+            }
+            check(recovered.findExact("今日速赚") != null && TaobaoListTask.progress(recovered) == 2) {
+                "清单恢复后未确认面板2/2，停止"
+            }
+            return "已恢复清单完成状态：累计60，面板2/2确认；本次未重复领取"
+        }
+        val signIn = TaobaoCoinTask.run(runtime, record, initial)
         runtime.log("[签到结果] $signIn")
         var entry = read().findExact("40秒快速赚")
         for (attempt in 1..5) {
@@ -100,12 +118,14 @@ object TaobaoQuickTask {
                 reward(page, "任务到访得金币", "+10") == null) { "到访领奖结果未确认，停止" }
             arrival = true
         }
+        val (afterLists, listCount) = TaobaoListTask.run(runtime, page, ::read)
+        page = afterLists
+        val summary = "本次清单完成${listCount}轮；" + if (arrival) "到访任务已完成；" else ""
         val video = reward(page, "好物沉浸看", "+30")
-        if (video == null) return if (arrival) "到访任务已完成；当前无可执行的好物沉浸看任务" else
-            "当前没有支持的待领奖任务；清单、答题、跨 App 任务尚未支持"
+        if (video == null) return summary + "当前无其他支持的待领奖任务；答题、跨 App 任务未执行"
         runtime.log("[快速赚] 进入好物沉浸看，分段滑动并检查奖励（最多10次）")
         tap(video)
         runtime.pause(1500)
-        return browse(runtime, ::read)
+        return summary + browse(runtime, ::read)
     }
 }

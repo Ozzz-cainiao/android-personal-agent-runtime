@@ -18,16 +18,18 @@ object TaobaoCoinTask {
         return "$result；已发送返回桌面指令"
     }
 
-    fun run(runtime: AutomationRuntime, record: (String) -> Unit = {}): String {
+    fun run(runtime: AutomationRuntime, record: (String) -> Unit = {}, initialPage: UiSnapshot? = null): String {
         fun read(): UiSnapshot {
             val xml = runtime.readUi(PACKAGE)
             record(xml)
             return UiSnapshot.parse(xml)
         }
-        runtime.log("[状态] 启动淘宝")
-        runtime.launch(PACKAGE)
-        runtime.pause(2500)
-        var page = read()
+        var page = initialPage ?: run {
+            runtime.log("[状态] 启动淘宝")
+            runtime.launch(PACKAGE)
+            runtime.pause(2500)
+            read()
+        }
         page.findExact("领淘金币")?.let {
             runtime.log("[状态] 进入淘金币")
             runtime.tap(PACKAGE, it.x, it.y)

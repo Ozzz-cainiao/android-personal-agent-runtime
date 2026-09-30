@@ -12,6 +12,7 @@ class TaobaoCoinTaskTest {
         var index = 0
         var taps = 0
         var homes = 0
+        override fun back(expectedPackage: String) {}
         override fun returnHome(expectedPackage: String) { homes++ }
         override fun launch(packageName: String) {}
         override fun readUi(packageName: String) = pages[minOf(index++, pages.lastIndex)]

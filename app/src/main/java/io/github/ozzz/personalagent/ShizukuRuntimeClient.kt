@@ -190,6 +190,7 @@ class ShizukuRuntimeClient(
                     log("[$name] exit=${value.getInt("exitCode")} 耗时=${value.getLong("elapsedMs")}ms")
                     check(value.getBoolean("success")) { "$name 失败：${value.getString("error")}; ${value.getString("stderr")}" }
                 }
+                override fun back(expectedPackage: String) = command("返回任务面板") { service.back(expectedPackage) }
                 override fun returnHome(expectedPackage: String) = command("返回桌面") { service.returnHome(expectedPackage) }
                 override fun launch(packageName: String) = command("启动") { service.launchApp(packageName) }
                 override fun tap(packageName: String, x: Int, y: Int) = command("点击 $x,$y") { service.tap(packageName, x, y) }

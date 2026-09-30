@@ -28,6 +28,7 @@ class TaobaoQuickTaskTest {
         override fun readUi(packageName: String) = pages.removeFirst()
         override fun pause(milliseconds: Long) {}
         override fun log(message: String) {}
+        override fun back(expectedPackage: String) {}
         override fun returnHome(expectedPackage: String) { check(!failHome) { "前台切换" }; homes++ }
         override fun swipe(packageName: String, startX: Int, startY: Int, endX: Int, endY: Int, durationMs: Int) {
             check(!failSwipe) { "任务取消或前台切换" }
@@ -86,6 +87,16 @@ class TaobaoQuickTaskTest {
         runtime.pages.addFirst(xml(UiSnapshot(listOf(node("淘金币标题", 0, 0), node("今天", 100, 200), node("赚更多金币", 200, 300)))))
         runtime.pages.addFirst(first)
         assertTrue(TaobaoQuickTask.runAndReturnHome(runtime).contains("已得30"))
+        assertEquals(1, runtime.homes)
+    }
+    @Test fun recoversCompletedListChecksPanelThenReturnsHome() {
+        val runtime = Runtime()
+        runtime.pages.add(xml(UiSnapshot(listOf(
+            UiNode("淘宝购物清单", "", "", 0, 0, 1080, 2358, false, true, true),
+            node("已得", 112, 157), node("60", 258, 157), node("当前页下单另得500", 483, 160)))))
+        runtime.pages.add(xml(UiSnapshot(listOf(node("今日速赚", 45, 286), node("逛清单，每15秒30金币(2/2)", 196, 666)))))
+        assertTrue(TaobaoQuickTask.runAndReturnHome(runtime).contains("2/2确认"))
+        assertEquals(0, runtime.swipes)
         assertEquals(1, runtime.homes)
     }
     @Test fun homeFailurePreservesEarnedResult() {
