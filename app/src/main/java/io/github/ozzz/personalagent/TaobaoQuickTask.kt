@@ -97,15 +97,16 @@ object TaobaoQuickTask {
         }
         val signIn = TaobaoCoinTask.run(runtime, record, initial)
         runtime.log("[签到结果] $signIn")
-        var entry = read().findExact("40秒快速赚")
+        fun entry(page: UiSnapshot) = page.findExact("40秒快速赚") ?: page.findExact("快速赚")
+        var targetEntry = entry(read())
         for (attempt in 1..5) {
-            if (entry != null) break
+            if (targetEntry != null) break
             runtime.log("[快速赚] 等待签到动画结束和入口加载 $attempt/5")
             runtime.pause(1000)
-            entry = read().findExact("40秒快速赚")
+            targetEntry = entry(read())
         }
-        checkNotNull(entry) { "签到已确认，但等待后仍未找到快速赚入口" }
-        tap(entry)
+        checkNotNull(targetEntry) { "签到已确认，但等待后仍未找到快速赚入口" }
+        tap(targetEntry)
         runtime.pause(1500)
         var page = read()
         check(page.findExact("今日速赚") != null) { "未确认快速赚任务面板" }

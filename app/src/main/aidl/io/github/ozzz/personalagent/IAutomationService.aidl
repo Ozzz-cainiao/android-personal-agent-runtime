@@ -1,6 +1,7 @@
 package io.github.ozzz.personalagent;
 
 import android.os.Bundle;
+import android.os.ParcelFileDescriptor;
 
 interface IAutomationService {
     // Reserved UserService lifecycle transaction; AIDL adds 1 to this ID.
@@ -12,4 +13,5 @@ interface IAutomationService {
     String dumpUi(String expectedPackage) = 4;
     Bundle swipe(String expectedPackage, int startX, int startY, int endX, int endY, int durationMs) = 6;
     Bundle back(String expectedPackage) = 7;
+    ParcelFileDescriptor captureScreen(String expectedPackage) = 8;
 }

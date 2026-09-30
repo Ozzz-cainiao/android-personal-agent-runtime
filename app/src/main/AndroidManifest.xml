@@ -13,6 +13,7 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <service android:name=".TaskService" android:exported="false" android:foregroundServiceType="shortService" />
+        <activity android:name=".DiagnosticsActivity" android:exported="false" />
         <activity android:name=".SetupActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>

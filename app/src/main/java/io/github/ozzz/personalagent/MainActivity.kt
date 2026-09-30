@@ -18,6 +18,7 @@ class MainActivity : Activity() {
     private lateinit var client: ShizukuRuntimeClient
     private lateinit var logView: TextView
     private lateinit var scroll: ScrollView
+    private var exitAfterTask = false
     private val entries = ArrayDeque<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,28 +42,40 @@ class MainActivity : Activity() {
             insets
         }
         root.addView(TextView(this).apply {
-            text = "点到 · 淘金币验证"
+            text = "点到 · 淘金币"
             textSize = 24f
         })
         root.addView(TextView(this).apply {
-            text = "每日签到成功后自动返回桌面。\n返回本 App 查看结果；遇到无法识别的页面停止。"
+            text = "一键启动淘宝 → 签到 → 快速赚 → 返回桌面并关闭点到页面。\n单页最多60秒，总任务最多120秒；失败保留记录。"
             textSize = 16f
             setPadding(0, spacing, 0, spacing)
         })
         val test = Button(this).apply { text = "测试 Shizuku 连接" }
         val launch = Button(this).apply { text = "启动淘宝（不点击）" }
         val inspect = Button(this).apply { text = "签到并返回桌面" }
-        val quick = Button(this).apply { text = "快速赚并返回桌面（测试）" }
+        val quick = Button(this).apply { text = "一键领取淘金币" }
         val disconnect = Button(this).apply { text = "取消任务 / 断开连接" }
         val setup = Button(this).apply {
             text = "配置检查 / 使用引导"
             setOnClickListener { startActivity(android.content.Intent(this@MainActivity, SetupActivity::class.java)) }
         }
-        root.addView(setup)
-        root.addView(test)
-        root.addView(launch)
-        root.addView(inspect)
+        val history = Button(this).apply {
+            text = "运行记录 / 截图 / 导出日志"
+            setOnClickListener { startActivity(android.content.Intent(this@MainActivity, DiagnosticsActivity::class.java)) }
+        }
         root.addView(quick)
+        root.addView(history)
+        root.addView(setup)
+        val tools = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = android.view.View.GONE
+            addView(test); addView(launch); addView(inspect)
+        }
+        root.addView(Button(this).apply {
+            text = "展开 / 收起单步调试"
+            setOnClickListener { tools.visibility = if (tools.visibility == android.view.View.GONE) android.view.View.VISIBLE else android.view.View.GONE }
+        })
+        root.addView(tools)
         root.addView(disconnect)
         logView = TextView(this).apply {
             textSize = 14f
@@ -79,6 +92,7 @@ class MainActivity : Activity() {
         client = ShizukuRuntimeClient(this, ::appendLog) { busy ->
             val serviceIntent = android.content.Intent(this, TaskService::class.java)
             if (busy) startForegroundService(serviceIntent) else stopService(serviceIntent)
+            history.isEnabled = !busy
             setup.isEnabled = !busy
             test.isEnabled = !busy
             launch.isEnabled = !busy
@@ -88,16 +102,17 @@ class MainActivity : Activity() {
         test.setOnClickListener { client.testConnection() }
         launch.setOnClickListener { TaobaoSmokeTask.launch(client) }
         inspect.setOnClickListener {
+            exitAfterTask = false
             client.runTask { runtime ->
                 TaobaoCoinTask.runAndReturnHome(runtime) { xml ->
                     java.io.File(filesDir, "last-ui.xml").writeText(xml)
                 }
             }
         }
-        quick.setOnClickListener { client.runTask { runtime ->
+        quick.setOnClickListener { exitAfterTask = true; client.runTask { runtime ->
             TaobaoQuickTask.runAndReturnHome(runtime) { xml -> java.io.File(filesDir, "quick-ui.xml").writeText(xml) }
         } }
-        disconnect.setOnClickListener { client.disconnect() }
+        disconnect.setOnClickListener { exitAfterTask = false; client.disconnect() }
     }
 
     private fun appendLog(message: String) {
@@ -107,6 +122,10 @@ class MainActivity : Activity() {
         while (entries.size > 150) entries.removeFirst()
         logView.text = entries.joinToString("\n\n")
         scroll.post { scroll.fullScroll(ScrollView.FOCUS_DOWN) }
+        if (exitAfterTask && message.startsWith("[任务结果]")) {
+            exitAfterTask = false
+            finishAndRemoveTask()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

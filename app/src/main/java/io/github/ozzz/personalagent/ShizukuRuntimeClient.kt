@@ -16,9 +16,16 @@ import java.util.concurrent.Future
 /** All mutable connection state and UI callbacks live on the main thread. */
 class ShizukuRuntimeClient(
     context: Context,
-    private val report: (String) -> Unit,
+    private val onReport: (String) -> Unit,
     private val busyChanged: (Boolean) -> Unit,
 ) : AutoCloseable {
+    private val appContext = context.applicationContext
+    private var diagnostics: TaskDiagnostics? = null
+    private var pageTimeout: Runnable? = null
+    private fun report(message: String) {
+        diagnostics?.log(message)
+        onReport(message)
+    }
     private val main = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
     private val args = Shizuku.UserServiceArgs(
@@ -39,8 +46,9 @@ class ShizukuRuntimeClient(
 
     private val timeout = Runnable {
         if (!closed && busy) {
+            diagnostics?.status("总超时，已停止；截图为此前最后成功采集，不保证是超时瞬间")
             disconnect()
-            report("[失败] 操作超时，已断开连接，请查看 Logcat 后重试。")
+            report("[失败] 操作总超时，已停止。打开运行记录查看最后页面与截图。")
         }
     }
 
@@ -103,6 +111,7 @@ class ShizukuRuntimeClient(
 
     private fun start(packageName: String?, tap: TapRequest? = null, task: ((AutomationRuntime) -> String)? = null) {
         if (closed || busy) return
+        diagnostics = if (task != null) TaskDiagnostics(appContext) else null
         requestedPackage = packageName
         requestedTap = tap
         requestedTask = task
@@ -177,8 +186,39 @@ class ShizukuRuntimeClient(
         main.removeCallbacks(timeout)
         main.postDelayed(timeout, 120_000)
         val attempt = ++generation
+        val evidence = diagnostics
+        val budget = PageBudget(android.os.SystemClock::elapsedRealtime)
+        fun armPageTimeout() {
+            main.post {
+                if (!closed && generation == attempt && busy) {
+                    pageTimeout?.let(main::removeCallbacks)
+                    pageTimeout = Runnable {
+                        if (!closed && generation == attempt && busy) {
+                            if (budget.remaining() > 0) {
+                                armPageTimeout()
+                                return@Runnable
+                            }
+                            evidence?.status("单页60秒超时：${budget.page}；已停止，保留最后成功采集的页面与截图")
+                            disconnect()
+                            report("[任务失败] 单页60秒超时：${budget.page}；已停止，见运行记录")
+                        }
+                    }.also { main.postDelayed(it, budget.remaining()) }
+                }
+            }
+        }
+        armPageTimeout()
         taskFuture = worker.submit {
-            fun checkActive() { check(!closed && generation == attempt && !Thread.currentThread().isInterrupted) { "任务已取消" } }
+            fun checkActive() {
+                check(!closed && generation == attempt && !Thread.currentThread().isInterrupted) { "任务已取消" }
+                budget.check()
+            }
+            var lastPackage: String? = null
+            fun capture(reason: String) {
+                val target = lastPackage ?: return
+                if (closed || generation != attempt) return
+                runCatching { evidence?.screenshot(service.captureScreen(target), reason) }
+                    .onFailure { evidence?.log("[截图不可用] $reason：${it.message}；原有截图不代表当前现场") }
+            }
             val runtime = object : AutomationRuntime {
                 override fun log(message: String) {
                     checkActive()
@@ -187,24 +227,50 @@ class ShizukuRuntimeClient(
                 private fun command(name: String, call: () -> android.os.Bundle) {
                     checkActive()
                     val value = call()
+                    checkActive()
                     log("[$name] exit=${value.getInt("exitCode")} 耗时=${value.getLong("elapsedMs")}ms")
                     check(value.getBoolean("success")) { "$name 失败：${value.getString("error")}; ${value.getString("stderr")}" }
                 }
                 override fun back(expectedPackage: String) = command("返回任务面板") { service.back(expectedPackage) }
-                override fun returnHome(expectedPackage: String) = command("返回桌面") { service.returnHome(expectedPackage) }
+                override fun returnHome(expectedPackage: String) {
+                    checkActive()
+                    capture("任务结束前")
+                    command("返回桌面") { service.returnHome(expectedPackage) }
+                }
                 override fun launch(packageName: String) = command("启动") { service.launchApp(packageName) }
                 override fun tap(packageName: String, x: Int, y: Int) = command("点击 $x,$y") { service.tap(packageName, x, y) }
                 override fun swipe(packageName: String, startX: Int, startY: Int, endX: Int, endY: Int, durationMs: Int) =
                     command("滑动 $startX,$startY → $endX,$endY") {
                         service.swipe(packageName, startX, startY, endX, endY, durationMs)
                     }
-                override fun readUi(packageName: String): String { checkActive(); return service.dumpUi(packageName) }
+                override fun readUi(packageName: String): String {
+                    checkActive()
+                    val started = android.os.SystemClock.elapsedRealtime()
+                    val xml = service.dumpUi(packageName)
+                    checkActive()
+                    val key = PageBudget.key(packageName, UiSnapshot.parse(xml))
+                    val changed = budget.observe(key)
+                    lastPackage = packageName
+                    evidence?.page(xml, key)
+                    log("[页面] $key，读取${android.os.SystemClock.elapsedRealtime() - started}ms，剩余${budget.remaining() / 1000}秒")
+                    if (changed) {
+                        armPageTimeout()
+                        capture("进入 $key")
+                    }
+                    checkActive()
+                    return xml
+                }
                 override fun pause(milliseconds: Long) { checkActive(); Thread.sleep(milliseconds); checkActive() }
             }
             val result = runCatching { task(runtime) }
+            if (result.isFailure && !Thread.currentThread().isInterrupted && generation == attempt) {
+                evidence?.log("[异常堆栈] ${result.exceptionOrNull()?.stackTraceToString()}")
+                capture("任务失败现场（页面文字可能来自上次读取）")
+            }
             main.post {
                 if (!closed && generation == attempt) {
                     taskFuture = null
+                    evidence?.status(if (result.isSuccess) "已完成：${result.getOrNull()}" else "失败：${result.exceptionOrNull()?.message}")
                     finish()
                     result.onSuccess { report("[任务结果] $it") }
                         .onFailure { Log.e("PersonalAgent", "TASK_FAILED", it); report("[任务失败] ${it.message}") }
@@ -270,6 +336,7 @@ class ShizukuRuntimeClient(
     }
 
     fun disconnect() {
+        if (busy) diagnostics?.stopIfRunning("已取消或连接中断；保留最后成功采集的页面与截图")
         generation++
         taskFuture?.cancel(true)
         taskFuture = null
@@ -291,12 +358,16 @@ class ShizukuRuntimeClient(
     }
 
     private fun fail(step: String, error: Throwable) {
+        diagnostics?.status("失败：$step：${error.message}")
         Log.e("PersonalAgent", "FAILED step=$step", error)
         disconnect()
         report("[失败] $step：${error.javaClass.simpleName}: ${error.message}")
     }
 
     private fun finish() {
+        diagnostics?.stopIfRunning("任务已停止；具体原因见步骤日志")
+        pageTimeout?.let(main::removeCallbacks)
+        pageTimeout = null
         main.removeCallbacks(timeout)
         pendingTap?.let(main::removeCallbacks)
         pendingTap = null

@@ -10,6 +10,19 @@ import kotlin.system.exitProcess
 /** Instantiated by Shizuku in a separate shell/root process, not an Android Service. */
 class AutomationUserService : IAutomationService.Stub() {
     @Synchronized
+    override fun captureScreen(expectedPackage: String): android.os.ParcelFileDescriptor {
+        require(LaunchProtocol.validPackage(expectedPackage))
+        val foreground = CommandRunner.run(listOf("/system/bin/dumpsys", "activity", "activities"), 3000, 256000)
+        check(TapProtocol.isForeground(expectedPackage, foreground)) { "目标不在主屏前台，取消截图" }
+        val file = java.io.File.createTempFile("diandao-screen-", ".png", java.io.File("/data/local/tmp"))
+        try {
+            val result = CommandRunner.run(listOf("/system/bin/screencap", "-p", file.absolutePath), 3000)
+            check(!result.timedOut && result.exitCode == 0 && file.length() in 1..8_000_000) { "截图失败或超过大小限制" }
+            return android.os.ParcelFileDescriptor.open(file, android.os.ParcelFileDescriptor.MODE_READ_ONLY)
+        } finally { file.delete() }
+    }
+
+    @Synchronized
     override fun swipe(expectedPackage: String, startX: Int, startY: Int, endX: Int, endY: Int, durationMs: Int): Bundle {
         val started = SystemClock.elapsedRealtime()
         var result: CommandRunner.Result? = null

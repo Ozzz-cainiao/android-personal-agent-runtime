@@ -100,6 +100,18 @@ class TaobaoQuickTaskTest {
         assertEquals(0, runtime.swipes)
         assertEquals(1, runtime.homes)
     }
+    @Test fun renamedCompletedEntryStillOpensPanelAndExits() {
+        val runtime = readyRuntime()
+        val first = runtime.pages.removeFirst()
+        val second = runtime.pages.removeFirst().replace("40秒快速赚", "快速赚")
+        runtime.pages.clear()
+        runtime.pages.add(first)
+        runtime.pages.add(second)
+        runtime.pages.add(xml(UiSnapshot(listOf(node("今日速赚", 0, 0), node("今日快速赚奖励已拿完", 0, 100)))))
+        assertTrue(TaobaoQuickTask.runAndReturnHome(runtime).contains("已拿完"))
+        assertEquals(0, runtime.swipes)
+        assertEquals(1, runtime.homes)
+    }
     @Test fun homeFailurePreservesEarnedResult() {
         val runtime = readyRuntime().apply { failHome = true }
         val error = runCatching { TaobaoQuickTask.runAndReturnHome(runtime) }.exceptionOrNull()
