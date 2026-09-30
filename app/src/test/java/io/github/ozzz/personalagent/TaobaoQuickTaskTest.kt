@@ -4,6 +4,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TaobaoQuickTaskTest {
+    @Test fun recognizesObservedVideoPageWithoutPurchaseButtons() {
+        val root = UiNode("", "", "", 0, 0, 1080, 2400, false, true, true)
+        val content = root.copy(description = "图片，按钮。双击可进入详情页。", bottom = 2191)
+        val page = UiSnapshot(listOf(root, content,
+            UiNode("浏览15秒", "", "", 871, 1380, 1063, 1420, false, true, true),
+            UiNode("30", "", "", 967, 1414, 1009, 1451, false, true, true)))
+        assertEquals(root, TaobaoQuickTask.browseViewport(page))
+    }
     private fun pending(): UiSnapshot = UiSnapshot(listOf(
         UiNode("", "", "", 0, 0, 1080, 2400, false, true, true),
         node("加入购物车", 300, 2100), node("立即购买", 700, 2100),
@@ -68,6 +76,16 @@ class TaobaoQuickTaskTest {
         val runtime = readyRuntime()
         assertTrue(TaobaoQuickTask.runAndReturnHome(runtime).contains("返回桌面"))
         assertEquals(1, runtime.swipes)
+        assertEquals(1, runtime.homes)
+    }
+    @Test fun waitsForEntryAfterSignInAnimation() {
+        val runtime = readyRuntime()
+        val first = runtime.pages.removeFirst()
+        val entry = runtime.pages.removeFirst()
+        runtime.pages.addFirst(entry)
+        runtime.pages.addFirst(xml(UiSnapshot(listOf(node("淘金币标题", 0, 0), node("今天", 100, 200), node("赚更多金币", 200, 300)))))
+        runtime.pages.addFirst(first)
+        assertTrue(TaobaoQuickTask.runAndReturnHome(runtime).contains("已得30"))
         assertEquals(1, runtime.homes)
     }
     @Test fun homeFailurePreservesEarnedResult() {

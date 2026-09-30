@@ -34,7 +34,10 @@ object TaobaoQuickTask {
         val root = checkNotNull(page.nodes.firstOrNull { it.usable && it.left == 0 && it.top == 0 }) {
             "未确认屏幕边界，停止滑动"
         }
-        check(page.findExact("加入购物车") != null && page.findExact("立即购买") != null) {
+        val videoContent = page.nodes.any { it.usable && it.named("图片，按钮。双击可进入详情页。") &&
+            it.left <= root.right * 0.46 && it.right >= root.right * 0.46 &&
+            it.top <= root.bottom * 0.36 && it.bottom >= root.bottom * 0.58 }
+        check(videoContent || (page.findExact("加入购物车") != null && page.findExact("立即购买") != null)) {
             "浏览页面已变化，停止滑动"
         }
         val badge = page.nodes.filter { it.usable && it.left >= root.right * 0.7 &&
@@ -72,8 +75,16 @@ object TaobaoQuickTask {
         }
         fun tap(node: UiNode) = runtime.tap(PACKAGE, node.x, node.y)
         runtime.log("[快速赚] 进入淘金币")
-        TaobaoCoinTask.run(runtime)
-        val entry = checkNotNull(read().findExact("40秒快速赚")) { "未找到快速赚入口" }
+        val signIn = TaobaoCoinTask.run(runtime, record)
+        runtime.log("[签到结果] $signIn")
+        var entry = read().findExact("40秒快速赚")
+        for (attempt in 1..5) {
+            if (entry != null) break
+            runtime.log("[快速赚] 等待签到动画结束和入口加载 $attempt/5")
+            runtime.pause(1000)
+            entry = read().findExact("40秒快速赚")
+        }
+        checkNotNull(entry) { "签到已确认，但等待后仍未找到快速赚入口" }
         tap(entry)
         runtime.pause(1500)
         var page = read()
