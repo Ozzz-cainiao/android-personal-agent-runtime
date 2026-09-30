@@ -3,6 +3,8 @@ package io.github.ozzz.personalagent
 /** Observed arrival, shopping-list and video tasks; unknown offers are never clicked. */
 object TaobaoQuickTask {
     private const val PACKAGE = "com.taobao.taobao"
+    internal fun allDone(page: UiSnapshot): Boolean = page.findExact("今日速赚") != null &&
+        page.findExact("今日快速赚奖励已拿完") != null
     /** The reward badge can expose '已得' and '30' as separate adjacent nodes. */
     internal fun browseRewardEarned(page: UiSnapshot): Boolean {
         if (page.findExact("已得30") != null || page.findExact("已得 30") != null) return true
@@ -55,7 +57,7 @@ object TaobaoQuickTask {
             val page = read()
             if (browseRewardEarned(page)) {
                 runtime.log("[快速赚] 右侧奖励确认已得30，停止滑动")
-                return "好物沉浸看页面确认：已得30；其他类型未执行"
+                return "好物沉浸看页面确认：已得30"
             }
             check(step < 10) { "浏览已达10次滑动上限，未确认奖励，停止任务" }
             val screen = browseViewport(page)
@@ -107,6 +109,7 @@ object TaobaoQuickTask {
         runtime.pause(1500)
         var page = read()
         check(page.findExact("今日速赚") != null) { "未确认快速赚任务面板" }
+        if (allDone(page)) return "淘宝确认：今日快速赚奖励已拿完，无需重复执行"
         var arrival = false
         reward(page, "任务到访得金币", "+10")?.let {
             runtime.log("[快速赚] 领取到访奖励一次")
@@ -120,12 +123,32 @@ object TaobaoQuickTask {
         }
         val (afterLists, listCount) = TaobaoListTask.run(runtime, page, ::read)
         page = afterLists
-        val summary = "本次清单完成${listCount}轮；" + if (arrival) "到访任务已完成；" else ""
+        var quiz = false
+        reward(page, "淘金币趣味课堂", "+30")?.let {
+            tap(it)
+            runtime.pause(1500)
+            page = TaobaoQuizTask.run(runtime, ::read)
+            quiz = true
+        }
+        val summary = (if (quiz) "课堂领奖已确认；" else "") + "本次清单完成${listCount}轮；" + if (arrival) "到访任务已完成；" else ""
         val video = reward(page, "好物沉浸看", "+30")
-        if (video == null) return summary + "当前无其他支持的待领奖任务；答题、跨 App 任务未执行"
-        runtime.log("[快速赚] 进入好物沉浸看，分段滑动并检查奖励（最多10次）")
-        tap(video)
-        runtime.pause(1500)
-        return summary + browse(runtime, ::read)
+        var videoResult = ""
+        if (video != null) {
+            runtime.log("[快速赚] 进入好物沉浸看，分段滑动并检查奖励（最多10次）")
+            tap(video)
+            runtime.pause(1500)
+            videoResult = browse(runtime, ::read) + "；"
+            runtime.back(PACKAGE)
+            runtime.pause(1000)
+            page = read()
+            check(page.findExact("今日速赚") != null) { "视频奖励已确认，但未回到任务面板，停止" }
+        }
+        reward(page, "去蚂蚁庄园逛逛哟", "+50")?.let {
+            runtime.log("[庄园] 从任务入口访问一次")
+            tap(it)
+            page = TaobaoFarmTask.run(runtime, ::read)
+        }
+        return summary + videoResult + if (allDone(page)) "淘宝确认：今日快速赚奖励已拿完" else
+            "当前无其他支持的待领奖任务；未知任务未执行"
     }
 }

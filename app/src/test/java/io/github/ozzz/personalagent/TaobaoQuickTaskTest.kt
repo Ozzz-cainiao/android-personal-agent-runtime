@@ -72,6 +72,7 @@ class TaobaoQuickTaskTest {
         pages.add(xml(signed)); pages.add(xml(signed))
         pages.add(xml(UiSnapshot(listOf(node("今日速赚", 0, 0), node("好物沉浸看", 100, 300), node("+30", 500, 300)))))
         pages.add(xml(pending())); pages.add(xml(done()))
+        pages.add(xml(UiSnapshot(listOf(node("今日速赚", 0, 0)))))
     }
     @Test fun completeTaskSwipesAndReturnsHome() {
         val runtime = readyRuntime()
